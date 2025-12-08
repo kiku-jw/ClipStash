@@ -1,6 +1,7 @@
 import SwiftUI
+import AppKit
 
-/// Row view for a single clipboard item
+/// Row view for a single clipboard item with image thumbnail support
 struct ClipItemRow: View {
     let item: ClipItem
     let isSelected: Bool
@@ -9,26 +10,47 @@ struct ClipItemRow: View {
     let onTogglePin: () -> Void
     
     @State private var isHovered = false
+    @State private var thumbnail: NSImage?
     
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            // Pin indicator or type icon
+            // Pin indicator or content preview
             if item.pinned {
                 Image(systemName: "pin.fill")
                     .font(.caption)
                     .foregroundColor(.orange)
+                    .frame(width: 40, height: 40)
+            } else if item.type == .image {
+                // Image thumbnail
+                thumbnailView
+                    .frame(width: 40, height: 40)
+                    .cornerRadius(4)
+                    .clipped()
             } else {
-                Image(systemName: item.type == .text ? "doc.text" : "photo")
-                    .font(.caption)
+                Image(systemName: "doc.text")
+                    .font(.title3)
                     .foregroundColor(.secondary)
+                    .frame(width: 40, height: 40)
             }
             
             VStack(alignment: .leading, spacing: 2) {
                 // Content preview
-                Text(item.preview)
-                    .font(.system(.body))
-                    .lineLimit(2)
-                    .foregroundColor(.primary)
+                if item.type == .text {
+                    Text(item.preview)
+                        .font(.system(.body))
+                        .lineLimit(2)
+                        .foregroundColor(.primary)
+                } else {
+                    Text("Image")
+                        .font(.system(.body))
+                        .foregroundColor(.primary)
+                    
+                    if let size = formatByteSize(item.byteSize) {
+                        Text(size)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
                 // Metadata
                 HStack(spacing: 4) {
@@ -87,6 +109,80 @@ struct ClipItemRow: View {
         .onHover { hovering in
             isHovered = hovering
         }
+        .task {
+            await loadThumbnail()
+        }
+    }
+    
+    // MARK: - Thumbnail View
+    
+    @ViewBuilder
+    private var thumbnailView: some View {
+        if let thumbnail = thumbnail {
+            Image(nsImage: thumbnail)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } else {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.2))
+                .overlay {
+                    Image(systemName: "photo")
+                        .foregroundColor(.secondary)
+                }
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func loadThumbnail() async {
+        guard item.type == .image, let imagePath = item.imagePath else { return }
+        
+        let url = await StorageManager.shared.imageURL(for: imagePath)
+        
+        // Load and resize on background thread
+        let loadedThumbnail = await Task.detached(priority: .utility) {
+            guard let image = NSImage(contentsOf: url) else { return nil as NSImage? }
+            
+            // Create thumbnail (80x80 for retina)
+            let thumbnailSize = NSSize(width: 80, height: 80)
+            let thumbnail = NSImage(size: thumbnailSize)
+            
+            thumbnail.lockFocus()
+            NSGraphicsContext.current?.imageInterpolation = .high
+            
+            let aspectRatio = image.size.width / image.size.height
+            var drawRect: NSRect
+            
+            if aspectRatio > 1 {
+                // Wider than tall
+                let height = thumbnailSize.height
+                let width = height * aspectRatio
+                let x = (thumbnailSize.width - width) / 2
+                drawRect = NSRect(x: x, y: 0, width: width, height: height)
+            } else {
+                // Taller than wide
+                let width = thumbnailSize.width
+                let height = width / aspectRatio
+                let y = (thumbnailSize.height - height) / 2
+                drawRect = NSRect(x: 0, y: y, width: width, height: height)
+            }
+            
+            image.draw(in: drawRect, from: .zero, operation: .copy, fraction: 1.0)
+            thumbnail.unlockFocus()
+            
+            return thumbnail
+        }.value
+        
+        await MainActor.run {
+            self.thumbnail = loadedThumbnail
+        }
+    }
+    
+    private func formatByteSize(_ bytes: Int) -> String? {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: Int64(bytes))
     }
 }
 
@@ -117,14 +213,14 @@ struct ClipItemRow: View {
             item: ClipItem(
                 id: 2,
                 createdAt: Date().addingTimeInterval(-3600),
-                type: .text,
-                textContent: "Pinned item example",
-                imagePath: nil,
-                sourceBundleId: "com.apple.Notes",
-                contentHash: "def456",
-                pinned: true,
+                type: .image,
+                textContent: nil,
+                imagePath: "test.png",
+                sourceBundleId: "com.apple.Preview",
+                contentHash: "img123",
+                pinned: false,
                 protected: false,
-                byteSize: 50
+                byteSize: 256000
             ),
             isSelected: true,
             onCopy: {},

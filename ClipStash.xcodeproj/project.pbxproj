@@ -19,6 +19,8 @@
 		1A0000130000000000000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000140000000000000001 /* SettingsView.swift */; };
 		1A0000150000000000000001 /* ExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000160000000000000001 /* ExportSheet.swift */; };
 		1A0000170000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0000180000000000000001 /* Assets.xcassets */; };
+		1A0000300000000000000001 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000310000000000000001 /* HotkeyManager.swift */; };
+		1A0000320000000000000001 /* Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000330000000000000001 /* Notifications.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +38,8 @@
 		1A0000160000000000000001 /* ExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSheet.swift; sourceTree = "<group>"; };
 		1A0000180000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1A00001A0000000000000001 /* ClipStash.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClipStash.entitlements; sourceTree = "<group>"; };
+		1A0000310000000000000001 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
+		1A0000330000000000000001 /* Notifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notifications.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +125,8 @@
 		1A0000220000000000000001 /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				1A0000310000000000000001 /* HotkeyManager.swift */,
+				1A0000330000000000000001 /* Notifications.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -213,6 +219,8 @@
 				1A0000110000000000000001 /* ClipItemRow.swift in Sources */,
 				1A0000130000000000000001 /* SettingsView.swift in Sources */,
 				1A0000150000000000000001 /* ExportSheet.swift in Sources */,
+				1A0000300000000000000001 /* HotkeyManager.swift in Sources */,
+				1A0000320000000000000001 /* Notifications.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

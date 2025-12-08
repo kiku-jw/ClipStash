@@ -23,6 +23,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Hide dock icon (menu bar only)
         NSApp.setActivationPolicy(.accessory)
+        
+        // Register global hotkey (⌘⇧V)
+        HotkeyManager.shared.onHotkeyPressed = {
+            // Toggle popover visibility
+            // Note: MenuBarExtra handles this automatically via SwiftUI
+            // For custom control, we'd need to post a notification
+            NotificationCenter.default.post(name: .togglePopover, object: nil)
+        }
+        HotkeyManager.shared.register()
+        print("ClipStash: Global hotkey registered (⌘⇧V)")
     }
     
     func applicationWillTerminate(_ notification: Notification) {

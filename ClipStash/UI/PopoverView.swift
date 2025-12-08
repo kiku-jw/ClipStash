@@ -132,8 +132,18 @@ struct PopoverView: View {
         } message: {
             Text("This will delete all non-pinned items. Pinned items will be kept.")
         }
-        // Keyboard handling requires macOS 14+, disabled for macOS 13 compatibility
-        // TODO: Implement via focusable() + onMoveCommand() for macOS 13
+        // Keyboard navigation
+        .focusable()
+        .onMoveCommand { direction in
+            switch direction {
+            case .up: selectPrevious()
+            case .down: selectNext()
+            default: break
+            }
+        }
+        .onExitCommand {
+            // Close popover on Escape
+        }
     }
     
     private func selectPrevious() {
