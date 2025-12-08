@@ -448,23 +448,39 @@ struct SettingsView: View {
                     Text("Exported \(result.itemCount) items")
                         .font(.headline)
                     
-                    Text("\(result.files.count) file(s)")
+                    Text("\(result.files.count) file(s) • Ready for NotebookLM")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    HStack(spacing: 12) {
-                        Button("Reveal in Finder") {
-                            if let first = result.files.first {
-                                NSWorkspace.shared.selectFile(first.path, inFileViewerRootedAtPath: "")
+                    VStack(spacing: 8) {
+                        HStack(spacing: 12) {
+                            Button("Reveal in Finder") {
+                                if let first = result.files.first {
+                                    NSWorkspace.shared.selectFile(first.path, inFileViewerRootedAtPath: "")
+                                }
                             }
+                            .buttonStyle(.bordered)
+                            
+                            Button {
+                                if let url = URL(string: "https://notebooklm.google.com") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            } label: {
+                                Label("Open NotebookLM", systemImage: "brain")
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
-                        .buttonStyle(.bordered)
                         
                         Button("New Export") {
                             exportResult = nil
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
+                    
+                    Text("Drag exported .md files into a NotebookLM notebook")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
             } else {
                 // Options
@@ -556,6 +572,11 @@ struct SettingsView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .disabled(isExporting || (exportScope == .fromApps && selectedApps.isEmpty))
+                    
+                    // Info about NotebookLM
+                    Text("Auto-splits into ~180KB files for NotebookLM")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: 280)
             }
