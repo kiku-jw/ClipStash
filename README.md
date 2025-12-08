@@ -67,7 +67,9 @@ ClipStash is an **open-source clipboard manager** for macOS that prioritizes **p
 
 1. Download and unzip
 2. Move `ClipStash.app` to `/Applications`
-3. Right-click → Open (first time only, to bypass Gatekeeper)
+3. **First launch** (Gatekeeper bypass — app is open-source but not notarized):
+   - Right-click the app → **Open** → Click **Open** in dialog
+   - Or run in Terminal: `xattr -cr /Applications/ClipStash.app`
 
 ### Build from Source
 
