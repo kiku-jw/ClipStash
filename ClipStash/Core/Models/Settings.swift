@@ -57,6 +57,15 @@ final class AppSettings: ObservableObject {
     /// Ignore transient clipboard items
     @AppStorage(Keys.ignoreTransient) var ignoreTransient: Bool = true
     
+    /// Export scope: number of items (50, 100, 200, 500)
+    @AppStorage("exportScope") var exportScope: Int = 100
+    
+    /// Export format: markdown or plaintext
+    @AppStorage("exportFormat") var exportFormat: String = "markdown"
+    
+    /// Export only pinned items
+    @AppStorage("exportPinnedOnly") var exportPinnedOnly: Bool = false
+    
     // MARK: - Ignore List
     
     /// Bundle IDs to ignore (stored as JSON array)

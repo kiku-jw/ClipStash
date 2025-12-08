@@ -395,28 +395,53 @@ struct SettingsView: View {
     private var exportTab: some View {
         Form {
             Section {
-                GroupBox(label: Label("NotebookLM Integration", systemImage: "brain")) {
+                GroupBox(label: Label("Export Options", systemImage: "square.and.arrow.up")) {
                     VStack(alignment: .leading, spacing: 12) {
+                        // Scope picker
                         HStack {
-                            Image(systemName: "doc.richtext")
-                                .foregroundColor(.blue)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Markdown Export")
-                                Text("Optimized for NotebookLM upload")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                            Text("Items to export")
                             Spacer()
-                            Text("Default")
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.2))
-                                .cornerRadius(4)
+                            Picker("", selection: $settings.exportScope) {
+                                Text("Last 50").tag(50)
+                                Text("Last 100").tag(100)
+                                Text("Last 200").tag(200)
+                                Text("Last 500").tag(500)
+                            }
+                            .pickerStyle(.menu)
+                            .frame(width: 120)
                         }
                         
                         Divider()
                         
+                        // Format picker
+                        HStack {
+                            Text("Format")
+                            Spacer()
+                            Picker("", selection: $settings.exportFormat) {
+                                Text("Markdown").tag("markdown")
+                                Text("Plain Text").tag("plaintext")
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 180)
+                        }
+                        
+                        Divider()
+                        
+                        // Pinned only toggle
+                        Toggle(isOn: $settings.exportPinnedOnly) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Export Pinned Only")
+                                Text("Only include items you've pinned")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .padding(8)
+                }
+                
+                GroupBox(label: Label("NotebookLM Integration", systemImage: "brain")) {
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "scissors")
                                 .foregroundColor(.orange)
@@ -460,22 +485,6 @@ struct SettingsView: View {
                             StatusRow(icon: "pin", label: "Pinned", value: "\(diag.pinnedCount)")
                             StatusRow(icon: "externaldrive", label: "Database", value: formatBytes(Int(diag.dbSize)))
                             StatusRow(icon: "photo.stack", label: "Images", value: formatBytes(Int(diag.imagesSize)))
-                            
-                            Divider()
-                            
-                            StatusRow(
-                                icon: diag.fts5Available ? "magnifyingglass" : "text.magnifyingglass",
-                                label: "Search Engine",
-                                value: diag.fts5Available ? "FTS5" : "Basic",
-                                valueColor: diag.fts5Available ? .green : .orange
-                            )
-                            
-                            StatusRow(
-                                icon: diag.isMonitoring ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash",
-                                label: "Monitoring",
-                                value: diag.isMonitoring ? "Active" : "Stopped",
-                                valueColor: diag.isMonitoring ? .green : .red
-                            )
                         } else {
                             ProgressView()
                                 .frame(maxWidth: .infinity, alignment: .center)
