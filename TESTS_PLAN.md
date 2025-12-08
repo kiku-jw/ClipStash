@@ -10,40 +10,40 @@ Branch: `feature/unit-tests`
 - [x] Verify test target builds
 
 ### Task 2: StorageManager — Insert & Fetch (RED)
-- [ ] Write test `testInsertTextItem` — insert text, verify returned ID > 0
-- [ ] Run test, confirm FAILS (no in-memory DB setup)
+- [x] Write test `testInsertTextItem` — insert text, verify returned ID > 0
+- [x] Run test, confirm FAILS (no in-memory DB setup)
 
 ### Task 3: StorageManager — Insert & Fetch (GREEN)
-- [ ] Create in-memory SQLite for tests (`:memory:`)
-- [ ] Run test, confirm PASSES
+- [x] Create in-memory SQLite for tests (`:memory:`)
+- [x] Run test, confirm PASSES
 
 ### Task 4: StorageManager — Deduplication (RED → GREEN)
-- [ ] Write test `testDeduplication` — insert same hash twice, verify 1 item
-- [ ] Implement/verify dedup works, confirm PASSES
+- [x] Write test `testDeduplication` — insert same hash twice, verify 1 item
+- [x] Implement/verify dedup works, confirm PASSES
 
 ### Task 5: StorageManager — Eviction (RED → GREEN)
-- [ ] Write test `testEviction` — insert 10, limit 5, verify 5 remain
-- [ ] Confirm PASSES
+- [x] Write test `testEviction` — insert 10, limit 5, verify 5 remain
+- [x] Confirm PASSES
 
 ### Task 6: StorageManager — Search FTS5 (RED → GREEN)
-- [ ] Write test `testSearch` — insert 3 items, search, verify match
-- [ ] Confirm PASSES
+- [x] Write test `testSearch` — insert 3 items, search, verify match
+- [x] Confirm PASSES
 
 ### Task 7: StorageManager — Paging (RED → GREEN)
-- [ ] Write test `testPaging` — insert 20, fetch 10 offset 0, then 10 offset 10
-- [ ] Confirm PASSES
+- [x] Write test `testPaging` — insert 20, fetch 10 offset 0, then 10 offset 10
+- [x] Confirm PASSES
 
 ### Task 8: ExportService — Markdown Format (RED → GREEN)
-- [ ] Write test `testMarkdownGeneration` — export 1 item, verify format
-- [ ] Confirm PASSES
+- [x] Write test `testMarkdownGeneration` — export 1 item, verify format
+- [x] Confirm PASSES
 
 ### Task 9: ExportService — Auto-Split (RED → GREEN)
-- [ ] Write test `testAutoSplit` — export large content, verify multiple files
-- [ ] Confirm PASSES
+- [x] Write test `testAutoSplit` — export large content, verify multiple files
+- [x] Confirm PASSES
 
 ### Task 10: ClipboardMonitor — Hash Computation
-- [ ] Write test `testHashComputation` — same input = same hash
-- [ ] Confirm PASSES
+- [x] Write test `testHashComputation` — same input = same hash
+- [x] Confirm PASSES
 
 ---
 
