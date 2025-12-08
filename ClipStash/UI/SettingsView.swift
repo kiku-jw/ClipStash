@@ -256,27 +256,27 @@ struct SettingsView: View {
         Form {
             Section {
                 GroupBox(label: Label("Automatic Protection", systemImage: "shield.checkered")) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Password managers")
-                            Spacer()
-                            Text("Auto-ignored")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(isOn: $settings.ignoreConcealed) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Ignore Password Managers")
+                                    .font(.body)
+                                Text("Skip clipboard items marked as concealed (1Password, etc.)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                         
                         Divider()
                         
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Transient clipboard")
-                            Spacer()
-                            Text("Auto-ignored")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        Toggle(isOn: $settings.ignoreTransient) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Ignore Transient Items")
+                                    .font(.body)
+                                Text("Skip temporary clipboard content")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                     .padding(8)
@@ -304,6 +304,15 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.plain)
                             .disabled(newBundleId.isEmpty)
+                            
+                            Button {
+                                selectAppFromFinder()
+                            } label: {
+                                Image(systemName: "folder")
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Choose app from Finder")
                         }
                         
                         if !settings.ignoredBundleIds.isEmpty {
@@ -311,8 +320,17 @@ struct SettingsView: View {
                                 VStack(spacing: 4) {
                                     ForEach(settings.ignoredBundleIds, id: \.self) { bundleId in
                                         HStack {
-                                            Text(bundleId)
-                                                .font(.system(.caption, design: .monospaced))
+                                            if let appName = appName(for: bundleId) {
+                                                Text(appName)
+                                                    .font(.caption)
+                                                    .foregroundColor(.primary)
+                                                Text("(\(bundleId))")
+                                                    .font(.system(.caption2, design: .monospaced))
+                                                    .foregroundColor(.secondary)
+                                            } else {
+                                                Text(bundleId)
+                                                    .font(.system(.caption, design: .monospaced))
+                                            }
                                             Spacer()
                                             Button {
                                                 settings.removeIgnoredBundleId(bundleId)
@@ -329,7 +347,7 @@ struct SettingsView: View {
                                     }
                                 }
                             }
-                            .frame(maxHeight: 80)
+                            .frame(maxHeight: 100)
                         }
                     }
                     .padding(8)
@@ -337,6 +355,39 @@ struct SettingsView: View {
             }
         }
         .padding()
+    }
+    
+    private func selectAppFromFinder() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.message = "Select an application to ignore"
+        panel.prompt = "Add to Ignore List"
+        
+        if panel.runModal() == .OK, let url = panel.url {
+            if let bundle = Bundle(url: url), let bundleId = bundle.bundleIdentifier {
+                settings.addIgnoredBundleId(bundleId)
+            }
+        }
+    }
+    
+    private func appName(for bundleId: String) -> String? {
+        // Try to find app name from common locations
+        let paths = ["/Applications", "/System/Applications", "/Applications/Utilities"]
+        for basePath in paths {
+            if let apps = try? FileManager.default.contentsOfDirectory(atPath: basePath) {
+                for app in apps where app.hasSuffix(".app") {
+                    let appPath = "\(basePath)/\(app)"
+                    if let bundle = Bundle(path: appPath), bundle.bundleIdentifier == bundleId {
+                        return bundle.infoDictionary?["CFBundleName"] as? String ?? app.replacingOccurrences(of: ".app", with: "")
+                    }
+                }
+            }
+        }
+        return nil
     }
     
     // MARK: - Export Tab

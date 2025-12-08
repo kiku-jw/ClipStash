@@ -18,6 +18,8 @@ final class AppSettings: ObservableObject {
         static let launchAtLogin = "launchAtLogin"
         static let globalHotkeyEnabled = "globalHotkeyEnabled"
         static let exportWarningShown = "exportWarningShown"
+        static let ignoreConcealed = "ignoreConcealed"
+        static let ignoreTransient = "ignoreTransient"
     }
     
     // MARK: - Settings
@@ -48,6 +50,12 @@ final class AppSettings: ObservableObject {
     
     /// Export warning already shown
     @AppStorage(Keys.exportWarningShown) var exportWarningShown: Bool = false
+    
+    /// Ignore concealed clipboard items (password managers)
+    @AppStorage(Keys.ignoreConcealed) var ignoreConcealed: Bool = true
+    
+    /// Ignore transient clipboard items
+    @AppStorage(Keys.ignoreTransient) var ignoreTransient: Bool = true
     
     // MARK: - Ignore List
     
