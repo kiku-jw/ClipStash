@@ -392,54 +392,159 @@ struct SettingsView: View {
     
     // MARK: - Export Tab
     
+    @State private var exportScope: ExportScopeOption = .last100
+    @State private var exportFormat: ExportFormatOption = .markdown
+    @State private var includeImages = false
+    @State private var isExporting = false
+    @State private var exportResult: ExportService.ExportResult?
+    @State private var exportError: String?
+    
+    enum ExportScopeOption: String, CaseIterable {
+        case last50 = "Last 50"
+        case last100 = "Last 100"
+        case last200 = "Last 200"
+        case last500 = "Last 500"
+        case today = "Today"
+        case pinnedOnly = "Pinned Only"
+        
+        var scope: ExportService.ExportScope {
+            switch self {
+            case .last50: return .lastN(50)
+            case .last100: return .lastN(100)
+            case .last200: return .lastN(200)
+            case .last500: return .lastN(500)
+            case .today: return .today
+            case .pinnedOnly: return .pinnedOnly
+            }
+        }
+    }
+    
+    enum ExportFormatOption: String, CaseIterable {
+        case markdown = "Markdown"
+        case plainText = "Plain Text"
+        
+        var format: ExportService.ExportFormat {
+            switch self {
+            case .markdown: return .markdown
+            case .plainText: return .plainText
+            }
+        }
+    }
+    
     private var exportTab: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
+            if let result = exportResult {
+                // Success state
+                VStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(.green)
+                    
+                    Text("Exported \(result.itemCount) items")
+                        .font(.headline)
+                    
+                    Text("\(result.files.count) file(s)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    HStack(spacing: 12) {
+                        Button("Reveal in Finder") {
+                            if let first = result.files.first {
+                                NSWorkspace.shared.selectFile(first.path, inFileViewerRootedAtPath: "")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        
+                        Button("New Export") {
+                            exportResult = nil
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            } else {
+                // Options
+                VStack(spacing: 12) {
+                    // Scope
+                    HStack {
+                        Text("What to export")
+                        Spacer()
+                        Picker("", selection: $exportScope) {
+                            ForEach(ExportScopeOption.allCases, id: \.self) { opt in
+                                Text(opt.rawValue).tag(opt)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 130)
+                    }
+                    
+                    // Format
+                    HStack {
+                        Text("Format")
+                        Spacer()
+                        Picker("", selection: $exportFormat) {
+                            ForEach(ExportFormatOption.allCases, id: \.self) { opt in
+                                Text(opt.rawValue).tag(opt)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 160)
+                    }
+                    
+                    // Options
+                    Toggle("Include image references", isOn: $includeImages)
+                    Toggle("Skip warning next time", isOn: $settings.exportWarningShown)
+                    
+                    if let error = exportError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                    
+                    Spacer()
+                        .frame(height: 8)
+                    
+                    // Export button
+                    Button {
+                        Task { await performExport() }
+                    } label: {
+                        if isExporting {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Label("Export Now", systemImage: "square.and.arrow.up")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(isExporting)
+                }
+                .frame(maxWidth: 280)
+            }
+            
             Spacer()
             
-            // Items count
-            VStack(spacing: 6) {
-                Text("Items to export")
-                    .font(.headline)
-                Picker("", selection: $settings.exportScope) {
-                    Text("50").tag(50)
-                    Text("100").tag(100)
-                    Text("200").tag(200)
-                    Text("500").tag(500)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
-            }
-            
-            // Format
-            VStack(spacing: 6) {
-                Text("Format")
-                    .font(.headline)
-                Picker("", selection: $settings.exportFormat) {
-                    Text("Markdown").tag("markdown")
-                    Text("Plain Text").tag("plaintext")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
-            }
-            
-            Divider()
-                .frame(width: 250)
-            
-            // Options
-            VStack(alignment: .leading, spacing: 8) {
-                Toggle("Export pinned only", isOn: $settings.exportPinnedOnly)
-                Toggle("Skip export warning", isOn: $settings.exportWarningShown)
-            }
-            .frame(width: 200)
-            
-            Spacer()
-            
-            // Info footer
             Text("Large exports auto-split at ~180KB")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
         .padding()
+    }
+    
+    private func performExport() async {
+        isExporting = true
+        exportError = nil
+        
+        do {
+            exportResult = try await ExportService.shared.export(
+                scope: exportScope.scope,
+                format: exportFormat.format,
+                includeImageRefs: includeImages
+            )
+        } catch {
+            exportError = error.localizedDescription
+        }
+        
+        isExporting = false
     }
     
     // MARK: - Diagnostics Tab
