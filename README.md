@@ -1,10 +1,20 @@
-# ClipStash
+<p align="center">
+  <img src="assets/icon.png" alt="ClipStash" width="128" height="128">
+</p>
 
-[![Build](https://github.com/kiku-jw/ClipStash/actions/workflows/ci.yml/badge.svg)](https://github.com/kiku-jw/ClipStash/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-brightgreen)](https://www.apple.com/macos/)
+<h1 align="center">ClipStash</h1>
 
-Lightweight, privacy-first clipboard history manager for macOS menu bar.
+<p align="center">
+  <strong>🗒️ Lightweight, privacy-first clipboard history manager for macOS</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/kiku-jw/ClipStash/actions"><img src="https://github.com/kiku-jw/ClipStash/actions/workflows/ci.yml/badge.svg" alt="Build"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-14%2B-brightgreen" alt="macOS 14+"></a>
+</p>
+
+---
 
 ## Features
 
