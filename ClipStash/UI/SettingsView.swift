@@ -48,6 +48,11 @@ struct SettingsView: View {
                 .tabItem {
                     Label("Advanced", systemImage: "wrench.and.screwdriver")
                 }
+            
+            aboutTab
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
         }
         .padding()
         .frame(width: 500, height: 400)
@@ -534,6 +539,105 @@ struct StatusRow: View {
                 .font(.caption.bold())
                 .foregroundColor(valueColor)
         }
+    }
+}
+
+// MARK: - About Tab
+
+extension SettingsView {
+    private var aboutTab: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            // App Icon
+            Image(systemName: "doc.on.clipboard.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            
+            Text("ClipStash")
+                .font(.title.bold())
+            
+            Text("Version 1.0")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            VStack(spacing: 8) {
+                Button {
+                    if let url = URL(string: "https://kikuai.dev") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Made by KikuAI Lab")
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.blue)
+                
+                Button {
+                    if let url = URL(string: "https://github.com/kiku-jw/ClipStash") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left.forwardslash.chevron.right")
+                            .font(.caption)
+                        Text("View on GitHub")
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+            }
+            
+            Divider()
+                .frame(width: 200)
+            
+            VStack(spacing: 8) {
+                Text("Support Development")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 8) {
+                    SupportButton(title: "Gumroad", url: "https://kiku0.gumroad.com/coffee")
+                    SupportButton(title: "BMC", url: "https://buymeacoffee.com/kiku")
+                    SupportButton(title: "Thanks", url: "https://thanks.dev/d/gh/kiku-jw")
+                    SupportButton(title: "Ko-fi", url: "https://ko-fi.com/kiku_jw")
+                }
+            }
+            
+            Spacer()
+        }
+    }
+}
+
+struct SupportButton: View {
+    let title: String
+    let url: String
+    
+    var body: some View {
+        Button {
+            if let buttonUrl = URL(string: url) {
+                NSWorkspace.shared.open(buttonUrl)
+            }
+        } label: {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(6)
+        .help(url)
     }
 }
 

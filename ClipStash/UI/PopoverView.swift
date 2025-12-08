@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 /// Filter for clipboard content types
 enum ClipFilter: String, CaseIterable {
@@ -12,12 +13,12 @@ struct PopoverView: View {
     @EnvironmentObject var viewModel: ClipboardViewModel
     @EnvironmentObject var settings: AppSettings
     
-    @State private var showExportSheet = false
     @State private var showClearConfirmation = false
     @State private var hoveredItemId: Int64?
     @State private var selectedFilter: ClipFilter = .all
     @State private var selectedApp: String = "all"
     @State private var availableApps: [String] = []
+    @State private var searchTask: Task<Void, Never>?
     @FocusState private var isSearchFocused: Bool
     
     private var filteredItems: [ClipItem] {
@@ -84,7 +85,7 @@ struct PopoverView: View {
         .onKeyPress(.escape) {
             if !viewModel.searchQuery.isEmpty {
                 viewModel.searchQuery = ""
-                Task { await viewModel.search() }
+                triggerSearch()
                 return .handled
             }
             return .ignored
@@ -92,11 +93,6 @@ struct PopoverView: View {
         .onKeyPress(.delete) {
             Task { await viewModel.deleteSelected() }
             return .handled
-        }
-        .sheet(isPresented: $showExportSheet) {
-            ExportSheet()
-                .environmentObject(viewModel)
-                .interactiveDismissDisabled()
         }
         .confirmationDialog("Clear History", isPresented: $showClearConfirmation) {
             Button("Clear All", role: .destructive) {
@@ -119,6 +115,15 @@ struct PopoverView: View {
         }
     }
     
+    private func triggerSearch() {
+        searchTask?.cancel()
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 150_000_000) // 150ms debounce
+            guard !Task.isCancelled else { return }
+            await viewModel.search()
+        }
+    }
+    
     // MARK: - Header
     
     private var headerView: some View {
@@ -133,14 +138,14 @@ struct PopoverView: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .focused($isSearchFocused)
-                    .onSubmit {
-                        Task { await viewModel.search() }
+                    .onChange(of: viewModel.searchQuery) { _, _ in
+                        triggerSearch()
                     }
                 
                 if !viewModel.searchQuery.isEmpty {
                     Button {
                         viewModel.searchQuery = ""
-                        Task { await viewModel.search() }
+                        triggerSearch()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 12))
@@ -195,17 +200,6 @@ struct PopoverView: View {
                 
                 Spacer()
                 
-                // Export button
-                Button {
-                    showExportSheet = true
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 11))
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.blue)
-                .help("Export")
-                
                 // Clear button
                 Button {
                     showClearConfirmation = true
@@ -223,10 +217,8 @@ struct PopoverView: View {
     }
     
     private func appDisplayName(for bundleId: String) -> String {
-        // Extract app name from bundle ID (last component)
         let components = bundleId.split(separator: ".")
         if let last = components.last {
-            // Capitalize first letter
             let name = String(last)
             return name.prefix(1).uppercased() + name.dropFirst()
         }
