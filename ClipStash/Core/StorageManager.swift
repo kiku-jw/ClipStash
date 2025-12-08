@@ -496,6 +496,33 @@ actor StorageManager {
         return try fetchRows(stmt)
     }
     
+    /// Fetch items from specific apps for export
+    func fetchForExport(bundleIds: [String]) throws -> [ClipItem] {
+        guard !bundleIds.isEmpty else { return [] }
+        
+        let placeholders = bundleIds.map { _ in "?" }.joined(separator: ", ")
+        let sql = """
+            SELECT id, content, type, sourceBundleId, imagePath, hash, createdAt, pinned
+            FROM items
+            WHERE sourceBundleId IN (\(placeholders))
+            ORDER BY createdAt DESC
+            """
+        
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+        
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) != SQLITE_OK {
+            throw StorageError.prepareFailed(errorMessage)
+        }
+        
+        // Bind bundle IDs
+        for (index, bundleId) in bundleIds.enumerated() {
+            sqlite3_bind_text(stmt, Int32(index + 1), bundleId, -1, nil)
+        }
+        
+        return try fetchRows(stmt)
+    }
+    
     // MARK: - Diagnostics
     
     func getDatabaseSize() -> Int64 {

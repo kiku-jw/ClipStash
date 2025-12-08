@@ -398,6 +398,9 @@ struct SettingsView: View {
     @State private var isExporting = false
     @State private var exportResult: ExportService.ExportResult?
     @State private var exportError: String?
+    @State private var availableApps: [String] = []
+    @State private var selectedApps: Set<String> = []
+    @State private var useAppFilter = false
     
     enum ExportScopeOption: String, CaseIterable {
         case last50 = "Last 50"
@@ -406,6 +409,7 @@ struct SettingsView: View {
         case last500 = "Last 500"
         case today = "Today"
         case pinnedOnly = "Pinned Only"
+        case fromApps = "Selected Apps"
         
         var scope: ExportService.ExportScope {
             switch self {
@@ -415,6 +419,7 @@ struct SettingsView: View {
             case .last500: return .lastN(500)
             case .today: return .today
             case .pinnedOnly: return .pinnedOnly
+            case .fromApps: return .lastN(100) // Will be overridden
             }
         }
     }
@@ -477,6 +482,44 @@ struct SettingsView: View {
                         .frame(width: 130)
                     }
                     
+                    // App checkboxes when "Selected Apps" chosen
+                    if exportScope == .fromApps {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Select apps:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            if availableApps.isEmpty {
+                                Text("No apps in history")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .italic()
+                            } else {
+                                ScrollView {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        ForEach(availableApps, id: \.self) { app in
+                                            Toggle(isOn: Binding(
+                                                get: { selectedApps.contains(app) },
+                                                set: { isOn in
+                                                    if isOn { selectedApps.insert(app) }
+                                                    else { selectedApps.remove(app) }
+                                                }
+                                            )) {
+                                                Text(appName(for: app) ?? app)
+                                                    .font(.caption)
+                                            }
+                                            .toggleStyle(.checkbox)
+                                        }
+                                    }
+                                }
+                                .frame(maxHeight: 80)
+                            }
+                        }
+                        .padding(8)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(6)
+                    }
+                    
                     // Format
                     HStack {
                         Text("Format")
@@ -492,16 +535,12 @@ struct SettingsView: View {
                     
                     // Options
                     Toggle("Include image references", isOn: $includeImages)
-                    Toggle("Skip warning next time", isOn: $settings.exportWarningShown)
                     
                     if let error = exportError {
                         Text(error)
                             .font(.caption)
                             .foregroundColor(.red)
                     }
-                    
-                    Spacer()
-                        .frame(height: 8)
                     
                     // Export button
                     Button {
@@ -516,18 +555,19 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .disabled(isExporting)
+                    .disabled(isExporting || (exportScope == .fromApps && selectedApps.isEmpty))
                 }
                 .frame(maxWidth: 280)
             }
             
             Spacer()
-            
-            Text("Large exports auto-split at ~180KB")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
         .padding()
+        .onAppear {
+            Task {
+                availableApps = (try? await StorageManager.shared.getUniqueApps()) ?? []
+            }
+        }
     }
     
     private func performExport() async {
@@ -535,8 +575,15 @@ struct SettingsView: View {
         exportError = nil
         
         do {
+            let scope: ExportService.ExportScope
+            if exportScope == .fromApps {
+                scope = .fromApps(Array(selectedApps))
+            } else {
+                scope = exportScope.scope
+            }
+            
             exportResult = try await ExportService.shared.export(
-                scope: exportScope.scope,
+                scope: scope,
                 format: exportFormat.format,
                 includeImageRefs: includeImages
             )

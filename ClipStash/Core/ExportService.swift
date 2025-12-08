@@ -28,6 +28,7 @@ actor ExportService {
         case lastWeek
         case pinnedOnly
         case selected([Int64])
+        case fromApps([String])  // Filter by bundle IDs
     }
     
     struct ExportResult {
@@ -95,6 +96,9 @@ actor ExportService {
             
         case .selected(let ids):
             return try await StorageManager.shared.fetchForExport(ids: ids)
+            
+        case .fromApps(let bundleIds):
+            return try await StorageManager.shared.fetchForExport(bundleIds: bundleIds)
         }
     }
     
