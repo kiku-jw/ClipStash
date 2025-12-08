@@ -76,7 +76,7 @@ struct SettingsView: View {
                         .help("Keep exact whitespace, don't trim")
                     
                     Toggle("Launch at Login", isOn: $settings.launchAtLogin)
-                        .onChange(of: settings.launchAtLogin) { _, newValue in
+                        .onChange(of: settings.launchAtLogin) { newValue in
                             updateLaunchAtLogin(newValue)
                         }
                 }

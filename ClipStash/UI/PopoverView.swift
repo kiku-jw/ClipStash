@@ -132,27 +132,8 @@ struct PopoverView: View {
         } message: {
             Text("This will delete all non-pinned items. Pinned items will be kept.")
         }
-        // Keyboard handling
-        .onKeyPress(.upArrow) {
-            selectPrevious()
-            return .handled
-        }
-        .onKeyPress(.downArrow) {
-            selectNext()
-            return .handled
-        }
-        .onKeyPress(.return) {
-            if let id = selectedItemId, let item = viewModel.items.first(where: { $0.id == id }) {
-                viewModel.copyToClipboard(item)
-            }
-            return .handled
-        }
-        .onKeyPress(.delete, modifiers: .command) {
-            if let id = selectedItemId, let item = viewModel.items.first(where: { $0.id == id }) {
-                viewModel.delete(item)
-            }
-            return .handled
-        }
+        // Keyboard handling requires macOS 14+, disabled for macOS 13 compatibility
+        // TODO: Implement via focusable() + onMoveCommand() for macOS 13
     }
     
     private func selectPrevious() {
