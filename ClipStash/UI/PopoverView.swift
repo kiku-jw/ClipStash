@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// Filter for clipboard content types
+enum ClipFilter: String, CaseIterable {
+    case all = "All"
+    case text = "Text"
+    case images = "Images"
+}
+
 /// Main popover view showing clipboard history
 struct PopoverView: View {
     @EnvironmentObject var viewModel: ClipboardViewModel
@@ -8,17 +15,29 @@ struct PopoverView: View {
     @State private var showExportSheet = false
     @State private var showClearConfirmation = false
     @State private var hoveredItemId: Int64?
+    @State private var selectedFilter: ClipFilter = .all
     @FocusState private var isSearchFocused: Bool
+    
+    private var filteredItems: [ClipItem] {
+        switch selectedFilter {
+        case .all:
+            return viewModel.items
+        case .text:
+            return viewModel.items.filter { $0.type == .text }
+        case .images:
+            return viewModel.items.filter { $0.type == .image }
+        }
+    }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with search
+            // Header with search and filter
             headerView
             
             Divider()
             
             // Items list
-            if viewModel.items.isEmpty && !viewModel.isLoading {
+            if filteredItems.isEmpty && !viewModel.isLoading {
                 emptyState
             } else {
                 itemsList
@@ -82,48 +101,46 @@ struct PopoverView: View {
     private var headerView: some View {
         VStack(spacing: 8) {
             // Search bar
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                
+                TextField("Search clipboard...", text: $viewModel.searchQuery)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .focused($isSearchFocused)
+                    .onSubmit {
+                        Task { await viewModel.search() }
+                    }
+                
+                if !viewModel.searchQuery.isEmpty {
+                    Button {
+                        viewModel.searchQuery = ""
+                        Task { await viewModel.search() }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(8)
+            
+            // Filter tabs + actions
             HStack(spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                    
-                    TextField("Search clipboard...", text: $viewModel.searchQuery)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 13))
-                        .focused($isSearchFocused)
-                        .onSubmit {
-                            Task { await viewModel.search() }
-                        }
-                    
-                    if !viewModel.searchQuery.isEmpty {
-                        Button {
-                            viewModel.searchQuery = ""
-                            Task { await viewModel.search() }
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
+                // Filter picker
+                Picker("", selection: $selectedFilter) {
+                    ForEach(ClipFilter.allCases, id: \.self) { filter in
+                        Text(filter.rawValue).tag(filter)
                     }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
-            }
-            
-            // Quick actions bar
-            HStack(spacing: 12) {
-                // Item count
-                HStack(spacing: 4) {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 10))
-                    Text("\(viewModel.items.count)")
-                        .font(.system(size: 11, weight: .medium))
-                }
-                .foregroundColor(.secondary)
+                .pickerStyle(.segmented)
+                .frame(width: 160)
                 
                 Spacer()
                 
@@ -131,29 +148,23 @@ struct PopoverView: View {
                 Button {
                     showExportSheet = true
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 10))
-                        Text("Export")
-                            .font(.system(size: 11))
-                    }
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 11))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.blue)
+                .help("Export")
                 
                 // Clear button
                 Button {
                     showClearConfirmation = true
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 10))
-                        Text("Clear")
-                            .font(.system(size: 11))
-                    }
+                    Image(systemName: "trash")
+                        .font(.system(size: 11))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.red.opacity(0.8))
+                .help("Clear History")
             }
         }
         .padding(.horizontal, 12)
@@ -164,7 +175,7 @@ struct PopoverView: View {
     
     private var emptyState: some View {
         VStack(spacing: 12) {
-            Image(systemName: "clipboard")
+            Image(systemName: selectedFilter == .images ? "photo.on.rectangle" : "clipboard")
                 .font(.system(size: 48, weight: .light))
                 .foregroundStyle(
                     LinearGradient(
@@ -175,18 +186,38 @@ struct PopoverView: View {
                 )
             
             VStack(spacing: 4) {
-                Text(viewModel.searchQuery.isEmpty ? "No clipboard history" : "No results")
+                Text(emptyStateTitle)
                     .font(.headline)
                     .foregroundColor(.primary)
                 
-                Text(viewModel.searchQuery.isEmpty 
-                     ? "Copied items will appear here" 
-                     : "Try a different search term")
+                Text(emptyStateSubtitle)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var emptyStateTitle: String {
+        if !viewModel.searchQuery.isEmpty {
+            return "No results"
+        }
+        switch selectedFilter {
+        case .all: return "No clipboard history"
+        case .text: return "No text items"
+        case .images: return "No images"
+        }
+    }
+    
+    private var emptyStateSubtitle: String {
+        if !viewModel.searchQuery.isEmpty {
+            return "Try a different search term"
+        }
+        switch selectedFilter {
+        case .all: return "Copied items will appear here"
+        case .text: return "Copy text to see it here"
+        case .images: return "Copy images to see them here"
+        }
     }
     
     // MARK: - Items List
@@ -195,19 +226,24 @@ struct PopoverView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 2) {
-                    ForEach(viewModel.items) { item in
+                    ForEach(filteredItems) { item in
                         ClipItemRow(item: item)
                             .id(item.id)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(backgroundColor(for: item))
                             )
-                            .onTapGesture(count: 2) {
-                                viewModel.copyToClipboard(item)
-                            }
-                            .onTapGesture(count: 1) {
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                // Single tap - select immediately
                                 viewModel.selectedItemId = item.id
                             }
+                            .simultaneousGesture(
+                                TapGesture(count: 2).onEnded {
+                                    // Double tap - copy
+                                    viewModel.copyToClipboard(item)
+                                }
+                            )
                             .onHover { isHovered in
                                 hoveredItemId = isHovered ? item.id : nil
                             }
@@ -246,7 +282,7 @@ struct PopoverView: View {
             }
             .onChange(of: viewModel.selectedItemId) { oldId, newId in
                 if let newId = newId {
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    withAnimation(.easeOut(duration: 0.15)) {
                         proxy.scrollTo(newId, anchor: .center)
                     }
                 }

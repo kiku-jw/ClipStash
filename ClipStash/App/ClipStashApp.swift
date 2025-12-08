@@ -16,7 +16,7 @@ struct ClipStashApp: App {
                 Divider()
                     .padding(.vertical, 4)
                 
-                // Context menu at bottom
+                // Bottom bar with actions
                 HStack(spacing: 12) {
                     Button {
                         showAbout = true
@@ -27,9 +27,7 @@ struct ClipStashApp: App {
                     .buttonStyle(.plain)
                     .help("About ClipStash")
                     
-                    Button {
-                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                    } label: {
+                    SettingsLink {
                         Image(systemName: "gear")
                             .font(.system(size: 12))
                     }
@@ -53,6 +51,7 @@ struct ClipStashApp: App {
             }
             .sheet(isPresented: $showAbout) {
                 AboutView()
+                    .interactiveDismissDisabled()
             }
         } label: {
             Image(systemName: "list.clipboard")
@@ -95,15 +94,6 @@ struct AboutView: View {
             Divider()
                 .frame(width: 200)
             
-            // Description
-            Text("Lightweight, privacy-first\nclipboard history manager")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            
-            Divider()
-                .frame(width: 200)
-            
             // Author
             VStack(spacing: 4) {
                 Text("Made by")
@@ -126,34 +116,51 @@ struct AboutView: View {
                 .foregroundColor(.blue)
             }
             
+            // GitHub link
+            Button {
+                if let url = URL(string: "https://github.com/kiku-jw/ClipStash") {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left.forwardslash.chevron.right")
+                        .font(.caption)
+                    Text("View on GitHub")
+                        .font(.subheadline)
+                }
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
+            
             Divider()
                 .frame(width: 200)
             
-            // Support links
+            // Support links with service names
             VStack(spacing: 8) {
                 Text("Support Development")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                HStack(spacing: 8) {
-                    DonateButton(title: "☕", url: "https://kiku0.gumroad.com/coffee")
-                    DonateButton(title: "☕", url: "https://buymeacoffee.com/kiku")
-                    DonateButton(title: "🙏", url: "https://thanks.dev/d/gh/kiku-jw")
-                    DonateButton(title: "💚", url: "https://ko-fi.com/kiku_jw")
+                HStack(spacing: 6) {
+                    DonateButton(title: "Gumroad", url: "https://kiku0.gumroad.com/coffee")
+                    DonateButton(title: "BMC", url: "https://buymeacoffee.com/kiku")
+                    DonateButton(title: "Thanks", url: "https://thanks.dev/d/gh/kiku-jw")
+                    DonateButton(title: "Ko-fi", url: "https://ko-fi.com/kiku_jw")
                 }
             }
             
             Spacer()
-                .frame(height: 8)
+                .frame(height: 12)
             
             // Close button
             Button("Close") {
                 dismiss()
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.escape)
         }
         .padding(24)
-        .frame(width: 300, height: 420)
+        .frame(width: 320, height: 380)
     }
 }
 
@@ -170,12 +177,14 @@ struct DonateButton: View {
             }
         } label: {
             Text(title)
-                .font(.title2)
+                .font(.caption)
+                .fontWeight(.medium)
         }
         .buttonStyle(.plain)
-        .padding(6)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(8)
+        .cornerRadius(6)
         .help(url)
     }
 }

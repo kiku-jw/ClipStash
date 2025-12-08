@@ -38,7 +38,7 @@ final class AppSettings: ObservableObject {
     @AppStorage(Keys.bytePreserveMode) var bytePreserveMode: Bool = false
     
     /// Also capture images from clipboard
-    @AppStorage(Keys.saveImages) var saveImages: Bool = false
+    @AppStorage(Keys.saveImages) var saveImages: Bool = true
     
     /// Launch at login
     @AppStorage(Keys.launchAtLogin) var launchAtLogin: Bool = false
