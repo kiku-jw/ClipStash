@@ -104,7 +104,8 @@ struct ItemDetailView: View {
         guard item.type == .image, let imagePath = item.imagePath else { return }
         
         Task {
-            let url = URL(fileURLWithPath: imagePath)
+            // Use StorageManager to get full URL (imagePath is relative)
+            let url = await StorageManager.shared.imageURL(for: imagePath)
             if let nsImage = NSImage(contentsOf: url) {
                 await MainActor.run {
                     self.image = nsImage
