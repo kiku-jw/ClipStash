@@ -515,6 +515,26 @@ actor StorageManager {
         return totalSize
     }
     
+    /// Get unique source bundle IDs for filtering
+    func getUniqueApps() throws -> [String] {
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+        
+        let sql = "SELECT DISTINCT sourceBundleId FROM items WHERE sourceBundleId IS NOT NULL ORDER BY sourceBundleId"
+        
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) != SQLITE_OK {
+            throw StorageError.prepareFailed(errorMessage)
+        }
+        
+        var apps: [String] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let bundleId = sqlite3_column_text(stmt, 0) {
+                apps.append(String(cString: bundleId))
+            }
+        }
+        return apps
+    }
+    
     var isFTS5Available: Bool {
         fts5Available
     }

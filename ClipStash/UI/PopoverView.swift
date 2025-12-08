@@ -16,17 +16,28 @@ struct PopoverView: View {
     @State private var showClearConfirmation = false
     @State private var hoveredItemId: Int64?
     @State private var selectedFilter: ClipFilter = .all
+    @State private var selectedApp: String = "all"
+    @State private var availableApps: [String] = []
     @FocusState private var isSearchFocused: Bool
     
     private var filteredItems: [ClipItem] {
+        var items = viewModel.items
+        
+        // Filter by type
         switch selectedFilter {
-        case .all:
-            return viewModel.items
+        case .all: break
         case .text:
-            return viewModel.items.filter { $0.type == .text }
+            items = items.filter { $0.type == .text }
         case .images:
-            return viewModel.items.filter { $0.type == .image }
+            items = items.filter { $0.type == .image }
         }
+        
+        // Filter by app
+        if selectedApp != "all" {
+            items = items.filter { $0.sourceBundleId == selectedApp }
+        }
+        
+        return items
     }
     
     var body: some View {
@@ -50,10 +61,13 @@ struct PopoverView: View {
                     .padding(.vertical, 4)
             }
         }
-        .frame(width: 380, height: 450)
+        .frame(width: 400, height: 480)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
-            Task { await viewModel.loadInitial() }
+            Task { 
+                await viewModel.loadInitial()
+                await loadAvailableApps()
+            }
         }
         .onKeyPress(.upArrow) {
             viewModel.selectPrevious()
@@ -82,6 +96,7 @@ struct PopoverView: View {
         .sheet(isPresented: $showExportSheet) {
             ExportSheet()
                 .environmentObject(viewModel)
+                .interactiveDismissDisabled()
         }
         .confirmationDialog("Clear History", isPresented: $showClearConfirmation) {
             Button("Clear All", role: .destructive) {
@@ -93,6 +108,14 @@ struct PopoverView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This action cannot be undone.")
+        }
+    }
+    
+    private func loadAvailableApps() async {
+        do {
+            availableApps = try await StorageManager.shared.getUniqueApps()
+        } catch {
+            availableApps = []
         }
     }
     
@@ -131,16 +154,44 @@ struct PopoverView: View {
             .background(Color(NSColor.controlBackgroundColor))
             .cornerRadius(8)
             
-            // Filter tabs + actions
+            // Filter row
             HStack(spacing: 8) {
-                // Filter picker
+                // Type filter
                 Picker("", selection: $selectedFilter) {
                     ForEach(ClipFilter.allCases, id: \.self) { filter in
                         Text(filter.rawValue).tag(filter)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 160)
+                .frame(width: 140)
+                
+                // App filter
+                Menu {
+                    Button("All Apps") {
+                        selectedApp = "all"
+                    }
+                    if !availableApps.isEmpty {
+                        Divider()
+                        ForEach(availableApps, id: \.self) { app in
+                            Button(appDisplayName(for: app)) {
+                                selectedApp = app
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "app.badge")
+                            .font(.system(size: 10))
+                        Text(selectedApp == "all" ? "Apps" : appDisplayName(for: selectedApp))
+                            .font(.system(size: 11))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(selectedApp != "all" ? Color.blue.opacity(0.15) : Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
                 
                 Spacer()
                 
@@ -169,6 +220,17 @@ struct PopoverView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+    
+    private func appDisplayName(for bundleId: String) -> String {
+        // Extract app name from bundle ID (last component)
+        let components = bundleId.split(separator: ".")
+        if let last = components.last {
+            // Capitalize first letter
+            let name = String(last)
+            return name.prefix(1).uppercased() + name.dropFirst()
+        }
+        return bundleId
     }
     
     // MARK: - Empty State
@@ -202,6 +264,9 @@ struct PopoverView: View {
         if !viewModel.searchQuery.isEmpty {
             return "No results"
         }
+        if selectedApp != "all" {
+            return "No items from this app"
+        }
         switch selectedFilter {
         case .all: return "No clipboard history"
         case .text: return "No text items"
@@ -212,6 +277,9 @@ struct PopoverView: View {
     private var emptyStateSubtitle: String {
         if !viewModel.searchQuery.isEmpty {
             return "Try a different search term"
+        }
+        if selectedApp != "all" {
+            return "Copy something from \(appDisplayName(for: selectedApp))"
         }
         switch selectedFilter {
         case .all: return "Copied items will appear here"
@@ -235,12 +303,10 @@ struct PopoverView: View {
                             )
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                // Single tap - select immediately
                                 viewModel.selectedItemId = item.id
                             }
                             .simultaneousGesture(
                                 TapGesture(count: 2).onEnded {
-                                    // Double tap - copy
                                     viewModel.copyToClipboard(item)
                                 }
                             )
@@ -261,6 +327,14 @@ struct PopoverView: View {
                                           systemImage: item.pinned ? "pin.slash" : "pin")
                                 }
                                 
+                                if let app = item.sourceBundleId {
+                                    Button {
+                                        selectedApp = app
+                                    } label: {
+                                        Label("Filter by \(appDisplayName(for: app))", systemImage: "line.3.horizontal.decrease.circle")
+                                    }
+                                }
+                                
                                 Divider()
                                 
                                 Button(role: .destructive) {
@@ -270,7 +344,6 @@ struct PopoverView: View {
                                 }
                             }
                             .onAppear {
-                                // Load more when reaching end
                                 if item.id == viewModel.items.last?.id {
                                     Task { await viewModel.loadMore() }
                                 }

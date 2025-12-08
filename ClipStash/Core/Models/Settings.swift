@@ -44,7 +44,7 @@ final class AppSettings: ObservableObject {
     @AppStorage(Keys.launchAtLogin) var launchAtLogin: Bool = false
     
     /// Enable global hotkey
-    @AppStorage(Keys.globalHotkeyEnabled) var globalHotkeyEnabled: Bool = true
+    @AppStorage(Keys.globalHotkeyEnabled) var globalHotkeyEnabled: Bool = false
     
     /// Export warning already shown
     @AppStorage(Keys.exportWarningShown) var exportWarningShown: Bool = false
