@@ -50,3 +50,33 @@ struct ClipStashApp: App {
         }
     }
 }
+
+/// Helper to open a detail window for clipboard items
+class DetailWindowController {
+    static let shared = DetailWindowController()
+    
+    private var detailWindow: NSWindow?
+    
+    func showDetail(for item: ClipItem) {
+        // Close existing window if any
+        detailWindow?.close()
+        
+        // Create new window
+        let contentView = ItemDetailView(item: item)
+        let hostingView = NSHostingController(rootView: contentView)
+        
+        let window = NSWindow(contentViewController: hostingView)
+        window.title = "Clipboard Item"
+        window.styleMask = [.titled, .closable, .resizable]
+        window.setContentSize(NSSize(width: 500, height: 400))
+        window.center()
+        window.level = .floating  // Stay on top
+        window.makeKeyAndOrderFront(nil)
+        
+        // Activate app to bring window to front
+        NSApp.activate(ignoringOtherApps: true)
+        
+        detailWindow = window
+    }
+}
+
