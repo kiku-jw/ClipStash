@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		017 /* ItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 114; };
 		016 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 113; };
 		001 /* ClipStashApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101; };
 		002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102; };
@@ -49,6 +50,7 @@
 		111 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		112 /* ClipboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardViewModel.swift; sourceTree = "<group>"; };
 		113 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
+		114 /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		201 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		301 /* StorageManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageManagerTests.swift; sourceTree = "<group>"; };
 		302 /* ExportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportServiceTests.swift; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 				110,
 				111,
 				112,
+				114,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -274,6 +277,7 @@
 				011,
 				012,
 				016,
+				017,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

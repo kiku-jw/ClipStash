@@ -19,6 +19,7 @@ struct PopoverView: View {
     @State private var selectedApp: String = "all"
     @State private var availableApps: [String] = []
     @State private var searchTask: Task<Void, Never>?
+    @State private var detailItem: ClipItem?
     @FocusState private var isSearchFocused: Bool
     
     private var filteredItems: [ClipItem] {
@@ -104,6 +105,9 @@ struct PopoverView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This action cannot be undone.")
+        }
+        .sheet(item: $detailItem) { item in
+            ItemDetailView(item: item)
         }
     }
     
@@ -299,7 +303,7 @@ struct PopoverView: View {
                             }
                             .simultaneousGesture(
                                 TapGesture(count: 2).onEnded {
-                                    viewModel.copyToClipboard(item)
+                                    detailItem = item
                                 }
                             )
                             .onHover { isHovered in
