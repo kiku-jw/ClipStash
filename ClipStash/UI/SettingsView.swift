@@ -395,79 +395,44 @@ struct SettingsView: View {
     private var exportTab: some View {
         Form {
             Section {
-                GroupBox(label: Label("Export Options", systemImage: "square.and.arrow.up")) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Scope picker
-                        HStack {
-                            Text("Items to export")
-                            Spacer()
-                            Picker("", selection: $settings.exportScope) {
-                                Text("Last 50").tag(50)
-                                Text("Last 100").tag(100)
-                                Text("Last 200").tag(200)
-                                Text("Last 500").tag(500)
-                            }
-                            .pickerStyle(.menu)
-                            .frame(width: 120)
-                        }
-                        
-                        Divider()
-                        
-                        // Format picker
-                        HStack {
-                            Text("Format")
-                            Spacer()
-                            Picker("", selection: $settings.exportFormat) {
-                                Text("Markdown").tag("markdown")
-                                Text("Plain Text").tag("plaintext")
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(width: 180)
-                        }
-                        
-                        Divider()
-                        
-                        // Pinned only toggle
-                        Toggle(isOn: $settings.exportPinnedOnly) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Export Pinned Only")
-                                Text("Only include items you've pinned")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
+                // Scope picker
+                HStack {
+                    Text("Items to export")
+                    Spacer()
+                    Picker("", selection: $settings.exportScope) {
+                        Text("50").tag(50)
+                        Text("100").tag(100)
+                        Text("200").tag(200)
+                        Text("500").tag(500)
                     }
-                    .padding(8)
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
                 }
                 
-                GroupBox(label: Label("NotebookLM Integration", systemImage: "brain")) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "scissors")
-                                .foregroundColor(.orange)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Auto-split Large Exports")
-                                Text("Files split at ~180KB for compatibility")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                        }
+                // Format picker
+                HStack {
+                    Text("Format")
+                    Spacer()
+                    Picker("", selection: $settings.exportFormat) {
+                        Text("Markdown").tag("markdown")
+                        Text("Plain Text").tag("plaintext")
                     }
-                    .padding(8)
+                    .pickerStyle(.segmented)
+                    .frame(width: 160)
                 }
                 
-                Toggle(isOn: $settings.exportWarningShown) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Skip Export Warning")
-                        Text("Don't show sensitive data warning before export")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                // Toggles
+                Toggle("Export pinned only", isOn: $settings.exportPinnedOnly)
+                Toggle("Skip export warning", isOn: $settings.exportWarningShown)
+                
+                // Info
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                    Text("Large exports auto-split at ~180KB for NotebookLM")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .padding(.top, 8)
             }
         }
         .padding()
