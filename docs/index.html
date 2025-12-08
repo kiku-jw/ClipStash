@@ -375,10 +375,69 @@
             font-size: 0.85rem;
         }
 
+        /* Comparison Table */
+        .comparison-section {
+            padding: 60px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .comparison-table-wrapper {
+            overflow-x: auto;
+            width: 100%;
+            max-width: 900px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 500px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-table th {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .comparison-table th:first-child {
+            text-align: left;
+        }
+
+        .comparison-table td {
+            text-align: center;
+        }
+
+        .comparison-table td:first-child {
+            text-align: left;
+        }
+
+        .comparison-table .highlight {
+            color: var(--accent);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             h1 {
-                font-size: 2.5rem;
+                font-size: 2rem;
+                letter-spacing: -1px;
+            }
+
+            .hero {
+                padding: 60px 0 40px;
+            }
+
+            .hero-subtitle {
+                font-size: 1rem;
             }
 
             .killer-grid {
@@ -386,12 +445,60 @@
                 gap: 40px;
             }
 
+            .killer-content h2 {
+                font-size: 1.6rem;
+            }
+
             .stats {
-                gap: 40px;
+                gap: 30px;
+                padding: 40px 0;
+            }
+
+            .stat-value {
+                font-size: 2rem;
             }
 
             .nav-links {
                 display: none;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-card {
+                padding: 24px;
+            }
+
+            .cta {
+                padding: 60px 0;
+            }
+
+            .cta h2 {
+                font-size: 1.8rem;
+            }
+
+            .section-title {
+                font-size: 1.5rem;
+                margin-bottom: 40px;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+
+            .footer-links {
+                flex-wrap: wrap;
+                gap: 16px;
+            }
+
+            .comparison-table {
+                font-size: 0.8rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 8px;
             }
         }
     </style>
@@ -479,54 +586,54 @@
         </section>
 
         <!-- Comparison Section -->
-        <section class="stats" style="flex-direction: column; gap: 40px;">
+        <section class="comparison-section">
             <h2 class="section-title">How We Compare</h2>
-            <div style="overflow-x: auto; width: 100%; max-width: 900px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <div class="comparison-table-wrapper">
+                <table class="comparison-table">
                     <thead>
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <th style="padding: 12px; text-align: left; color: var(--text-secondary);">Feature</th>
-                            <th style="padding: 12px; text-align: center; color: var(--accent);">ClipStash</th>
-                            <th style="padding: 12px; text-align: center; color: var(--text-secondary);">Maccy</th>
-                            <th style="padding: 12px; text-align: center; color: var(--text-secondary);">CopyQ</th>
-                            <th style="padding: 12px; text-align: center; color: var(--text-secondary);">PasteBar</th>
+                        <tr>
+                            <th>Feature</th>
+                            <th class="highlight">ClipStash</th>
+                            <th>Maccy</th>
+                            <th>CopyQ</th>
+                            <th>PasteBar</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 12px;">NotebookLM Export</td>
-                            <td style="padding: 12px; text-align: center; color: var(--accent);">✅ Unique</td>
-                            <td style="padding: 12px; text-align: center;">❌</td>
-                            <td style="padding: 12px; text-align: center;">❌</td>
-                            <td style="padding: 12px; text-align: center;">❌</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 12px;">Zero Network (Verifiable)</td>
-                            <td style="padding: 12px; text-align: center; color: var(--accent);">✅ Sandboxed</td>
-                            <td style="padding: 12px; text-align: center;">✅</td>
-                            <td style="padding: 12px; text-align: center;">❌</td>
-                            <td style="padding: 12px; text-align: center;">✅</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 12px;">FTS5 Search</td>
-                            <td style="padding: 12px; text-align: center; color: var(--accent);">✅</td>
-                            <td style="padding: 12px; text-align: center;">✅</td>
-                            <td style="padding: 12px; text-align: center;">Fuzzy</td>
-                            <td style="padding: 12px; text-align: center;">Basic</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 12px;">App-Filtered Export</td>
-                            <td style="padding: 12px; text-align: center; color: var(--accent);">✅</td>
-                            <td style="padding: 12px; text-align: center;">❌</td>
-                            <td style="padding: 12px; text-align: center;">Script</td>
-                            <td style="padding: 12px; text-align: center;">Partial</td>
+                        <tr>
+                            <td>NotebookLM Export</td>
+                            <td class="highlight">✅ Unique</td>
+                            <td>❌</td>
+                            <td>❌</td>
+                            <td>❌</td>
                         </tr>
                         <tr>
-                            <td style="padding: 12px;">Native UI</td>
-                            <td style="padding: 12px; text-align: center; color: var(--accent);">SwiftUI</td>
-                            <td style="padding: 12px; text-align: center;">AppKit</td>
-                            <td style="padding: 12px; text-align: center;">Qt</td>
-                            <td style="padding: 12px; text-align: center;">Tauri</td>
+                            <td>Zero Network (Verifiable)</td>
+                            <td class="highlight">✅ Sandboxed</td>
+                            <td>✅</td>
+                            <td>❌</td>
+                            <td>✅</td>
+                        </tr>
+                        <tr>
+                            <td>FTS5 Search</td>
+                            <td class="highlight">✅</td>
+                            <td>✅</td>
+                            <td>Fuzzy</td>
+                            <td>Basic</td>
+                        </tr>
+                        <tr>
+                            <td>App-Filtered Export</td>
+                            <td class="highlight">✅</td>
+                            <td>❌</td>
+                            <td>Script</td>
+                            <td>Partial</td>
+                        </tr>
+                        <tr>
+                            <td>Native UI</td>
+                            <td class="highlight">SwiftUI</td>
+                            <td>AppKit</td>
+                            <td>Qt</td>
+                            <td>Tauri</td>
                         </tr>
                     </tbody>
                 </table>
