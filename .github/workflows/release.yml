@@ -34,10 +34,31 @@ jobs:
       run: |
         # Find the built app
         APP_PATH=$(find build -name "ClipStash.app" -type d | head -1)
+        APP_DIR=$(dirname "$APP_PATH")
+        
+        # Create README with installation instructions
+        cat > "$APP_DIR/README.txt" << 'EOF'
+ClipStash - Clipboard Manager for macOS
+========================================
+
+INSTALLATION:
+1. Move ClipStash.app to /Applications
+2. First launch (Gatekeeper bypass - app is open-source but not Apple-notarized):
+   - Right-click the app → Open → Click "Open" in dialog
+   - OR run in Terminal: xattr -cr /Applications/ClipStash.app
+
+WHY THIS STEP?
+macOS blocks apps not signed with Apple Developer ID ($99/year).
+ClipStash is open-source and safe - verify the code at:
+https://github.com/kiku-jw/ClipStash
+
+DOCUMENTATION:
+https://github.com/kiku-jw/ClipStash/wiki
+EOF
         
         # Create zip for distribution
-        cd "$(dirname "$APP_PATH")"
-        zip -r ClipStash.app.zip ClipStash.app
+        cd "$APP_DIR"
+        zip -r ClipStash.app.zip ClipStash.app README.txt
         mv ClipStash.app.zip $GITHUB_WORKSPACE/
     
     - name: Upload to Release
