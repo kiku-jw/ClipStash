@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Select Xcode
+      run: |
+        XCODE_PATH=$(ls -d /Applications/Xcode*.app | tail -1)
+        sudo xcode-select -s "$XCODE_PATH"
+        xcodebuild -version
+    
+    - name: Build Release
+      run: |
+        xcodebuild build \
+          -project ClipStash.xcodeproj \
+          -scheme ClipStash \
+          -configuration Release \
+          -destination 'platform=macOS' \
+          -derivedDataPath build \
+          CODE_SIGN_IDENTITY="-" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+    
+    - name: Create App Bundle
+      run: |
+        # Find the built app
+        APP_PATH=$(find build -name "ClipStash.app" -type d | head -1)
+        
+        # Create zip for distribution
+        cd "$(dirname "$APP_PATH")"
+        zip -r ClipStash.app.zip ClipStash.app
+        mv ClipStash.app.zip $GITHUB_WORKSPACE/
+    
+    - name: Upload to Release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ClipStash.app.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ClipStash-app
+        path: ClipStash.app.zip
+        retention-days: 30
