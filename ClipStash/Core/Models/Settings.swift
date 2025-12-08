@@ -2,8 +2,8 @@ import Foundation
 import SwiftUI
 
 /// App settings with UserDefaults persistence
-final class Settings: ObservableObject {
-    static let shared = Settings()
+final class AppSettings: ObservableObject {
+    static let shared = AppSettings()
     
     // MARK: - Keys
     

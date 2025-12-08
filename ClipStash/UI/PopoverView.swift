@@ -1,314 +1,272 @@
 import SwiftUI
 
-/// Main popover view for clipboard history
+/// Main popover view showing clipboard history
 struct PopoverView: View {
-    @StateObject private var viewModel = PopoverViewModel()
-    @State private var selectedItemId: Int64?
-    @State private var showingExport = false
-    @State private var showingSettings = false
+    @EnvironmentObject var viewModel: ClipboardViewModel
+    @EnvironmentObject var settings: AppSettings
+    
+    @State private var showExportSheet = false
+    @State private var showClearConfirmation = false
+    @State private var hoveredItemId: Int64?
+    @FocusState private var isSearchFocused: Bool
     
     var body: some View {
         VStack(spacing: 0) {
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                
-                TextField("Search...", text: $viewModel.searchQuery)
-                    .textFieldStyle(.plain)
-                    .onSubmit {
-                        viewModel.search()
-                    }
-                
-                if !viewModel.searchQuery.isEmpty {
-                    Button(action: { viewModel.searchQuery = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-                
-                Button(action: { showingSettings = true }) {
-                    Image(systemName: "gearshape")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Settings")
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            // Header with search
+            headerView
             
             Divider()
             
             // Items list
-            if viewModel.isLoading && viewModel.items.isEmpty {
-                Spacer()
-                ProgressView()
-                Spacer()
-            } else if viewModel.items.isEmpty {
-                Spacer()
-                Text(viewModel.searchQuery.isEmpty ? "No clipboard history" : "No results")
-                    .foregroundColor(.secondary)
-                Spacer()
+            if viewModel.items.isEmpty && !viewModel.isLoading {
+                emptyState
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(viewModel.items) { item in
-                            ClipItemRow(
-                                item: item,
-                                isSelected: selectedItemId == item.id,
-                                onCopy: { viewModel.copyToClipboard(item) },
-                                onDelete: { viewModel.delete(item) },
-                                onTogglePin: { viewModel.togglePin(item) }
+                itemsList
+            }
+            
+            // Loading indicator
+            if viewModel.isLoading {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .padding(.vertical, 4)
+            }
+        }
+        .frame(width: 380, height: 450)
+        .background(Color(NSColor.windowBackgroundColor))
+        .onAppear {
+            Task { await viewModel.loadInitial() }
+        }
+        .onKeyPress(.upArrow) {
+            viewModel.selectPrevious()
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            viewModel.selectNext()
+            return .handled
+        }
+        .onKeyPress(.return) {
+            viewModel.copySelected()
+            return .handled
+        }
+        .onKeyPress(.escape) {
+            if !viewModel.searchQuery.isEmpty {
+                viewModel.searchQuery = ""
+                Task { await viewModel.search() }
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(.delete) {
+            Task { await viewModel.deleteSelected() }
+            return .handled
+        }
+        .sheet(isPresented: $showExportSheet) {
+            ExportSheet()
+                .environmentObject(viewModel)
+        }
+        .confirmationDialog("Clear History", isPresented: $showClearConfirmation) {
+            Button("Clear All", role: .destructive) {
+                Task { await viewModel.clearHistory(keepPinned: false) }
+            }
+            Button("Keep Pinned Items") {
+                Task { await viewModel.clearHistory(keepPinned: true) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action cannot be undone.")
+        }
+    }
+    
+    // MARK: - Header
+    
+    private var headerView: some View {
+        VStack(spacing: 8) {
+            // Search bar
+            HStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Search clipboard...", text: $viewModel.searchQuery)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                        .focused($isSearchFocused)
+                        .onSubmit {
+                            Task { await viewModel.search() }
+                        }
+                    
+                    if !viewModel.searchQuery.isEmpty {
+                        Button {
+                            viewModel.searchQuery = ""
+                            Task { await viewModel.search() }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(8)
+            }
+            
+            // Quick actions bar
+            HStack(spacing: 12) {
+                // Item count
+                HStack(spacing: 4) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 10))
+                    Text("\(viewModel.items.count)")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                // Export button
+                Button {
+                    showExportSheet = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 10))
+                        Text("Export")
+                            .font(.system(size: 11))
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.blue)
+                
+                // Clear button
+                Button {
+                    showClearConfirmation = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 10))
+                        Text("Clear")
+                            .font(.system(size: 11))
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.red.opacity(0.8))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+    
+    // MARK: - Empty State
+    
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "clipboard")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.blue.opacity(0.6), .purple.opacity(0.6)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            
+            VStack(spacing: 4) {
+                Text(viewModel.searchQuery.isEmpty ? "No clipboard history" : "No results")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Text(viewModel.searchQuery.isEmpty 
+                     ? "Copied items will appear here" 
+                     : "Try a different search term")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - Items List
+    
+    private var itemsList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(viewModel.items) { item in
+                        ClipItemRow(item: item)
+                            .id(item.id)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(backgroundColor(for: item))
                             )
-                            .onTapGesture {
-                                selectedItemId = item.id
-                            }
                             .onTapGesture(count: 2) {
                                 viewModel.copyToClipboard(item)
                             }
-                            
-                            if item.id != viewModel.items.last?.id {
-                                Divider()
+                            .onTapGesture(count: 1) {
+                                viewModel.selectedItemId = item.id
                             }
-                        }
-                        
-                        // Load more trigger
-                        if viewModel.hasMore {
-                            ProgressView()
-                                .padding()
-                                .onAppear {
-                                    viewModel.loadMore()
+                            .onHover { isHovered in
+                                hoveredItemId = isHovered ? item.id : nil
+                            }
+                            .contextMenu {
+                                Button {
+                                    viewModel.copyToClipboard(item)
+                                } label: {
+                                    Label("Copy", systemImage: "doc.on.doc")
                                 }
-                        }
+                                
+                                Button {
+                                    Task { await viewModel.togglePinned(item) }
+                                } label: {
+                                    Label(item.pinned ? "Unpin" : "Pin", 
+                                          systemImage: item.pinned ? "pin.slash" : "pin")
+                                }
+                                
+                                Divider()
+                                
+                                Button(role: .destructive) {
+                                    Task { await viewModel.deleteItem(item) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .onAppear {
+                                // Load more when reaching end
+                                if item.id == viewModel.items.last?.id {
+                                    Task { await viewModel.loadMore() }
+                                }
+                            }
                     }
                 }
-                .frame(maxHeight: 400)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
             }
-            
-            Divider()
-            
-            // Bottom bar
-            HStack {
-                Button("Export...") {
-                    showingExport = true
+            .onChange(of: viewModel.selectedItemId) { oldId, newId in
+                if let newId = newId {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo(newId, anchor: .center)
+                    }
                 }
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-                
-                Spacer()
-                
-                Text("\(viewModel.totalCount) items")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                Button("Clear") {
-                    viewModel.showClearConfirmation = true
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.red)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-        }
-        .frame(width: 350)
-        .onAppear {
-            viewModel.loadInitial()
-        }
-        .sheet(isPresented: $showingExport) {
-            ExportSheet()
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
-        .alert("Clear History", isPresented: $viewModel.showClearConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Clear", role: .destructive) {
-                viewModel.clearAll()
-            }
-        } message: {
-            Text("This will delete all non-pinned items. Pinned items will be kept.")
-        }
-        // Keyboard navigation
-        .focusable()
-        .onMoveCommand { direction in
-            switch direction {
-            case .up: selectPrevious()
-            case .down: selectNext()
-            default: break
-            }
-        }
-        .onExitCommand {
-            // Close popover on Escape
         }
     }
     
-    private func selectPrevious() {
-        guard !viewModel.items.isEmpty else { return }
-        
-        if let currentId = selectedItemId,
-           let currentIndex = viewModel.items.firstIndex(where: { $0.id == currentId }),
-           currentIndex > 0 {
-            selectedItemId = viewModel.items[currentIndex - 1].id
+    private func backgroundColor(for item: ClipItem) -> Color {
+        if viewModel.selectedItemId == item.id {
+            return Color.blue.opacity(0.15)
+        } else if hoveredItemId == item.id {
+            return Color(NSColor.controlBackgroundColor).opacity(0.5)
         } else {
-            selectedItemId = viewModel.items.first?.id
-        }
-    }
-    
-    private func selectNext() {
-        guard !viewModel.items.isEmpty else { return }
-        
-        if let currentId = selectedItemId,
-           let currentIndex = viewModel.items.firstIndex(where: { $0.id == currentId }),
-           currentIndex < viewModel.items.count - 1 {
-            selectedItemId = viewModel.items[currentIndex + 1].id
-        } else {
-            selectedItemId = viewModel.items.first?.id
-        }
-    }
-}
-
-// MARK: - View Model
-
-@MainActor
-class PopoverViewModel: ObservableObject {
-    @Published var items: [ClipItem] = []
-    @Published var searchQuery: String = ""
-    @Published var isLoading = false
-    @Published var hasMore = true
-    @Published var totalCount = 0
-    @Published var showClearConfirmation = false
-    
-    private let pageSize = 50
-    private var currentOffset = 0
-    
-    func loadInitial() {
-        items = []
-        currentOffset = 0
-        hasMore = true
-        loadMore()
-        loadTotalCount()
-    }
-    
-    func loadMore() {
-        guard !isLoading && hasMore else { return }
-        isLoading = true
-        
-        Task {
-            do {
-                let newItems: [ClipItem]
-                
-                if searchQuery.isEmpty {
-                    newItems = try await StorageManager.shared.fetchItems(
-                        limit: pageSize,
-                        offset: currentOffset
-                    )
-                } else {
-                    newItems = try await StorageManager.shared.search(
-                        query: searchQuery,
-                        limit: pageSize,
-                        offset: currentOffset
-                    )
-                }
-                
-                await MainActor.run {
-                    self.items.append(contentsOf: newItems)
-                    self.currentOffset += newItems.count
-                    self.hasMore = newItems.count == self.pageSize
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.isLoading = false
-                }
-            }
-        }
-    }
-    
-    func search() {
-        loadInitial()
-    }
-    
-    func loadTotalCount() {
-        Task {
-            do {
-                let count = try await StorageManager.shared.count()
-                await MainActor.run {
-                    self.totalCount = count
-                }
-            } catch {
-                // Ignore
-            }
-        }
-    }
-    
-    func copyToClipboard(_ item: ClipItem) {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        
-        switch item.type {
-        case .text:
-            if let text = item.textContent {
-                pasteboard.setString(text, forType: .string)
-            }
-        case .image:
-            if let imagePath = item.imagePath {
-                Task {
-                    let url = await StorageManager.shared.imageURL(for: imagePath)
-                    if let image = NSImage(contentsOf: url) {
-                        pasteboard.writeObjects([image])
-                    }
-                }
-            }
-        }
-    }
-    
-    func delete(_ item: ClipItem) {
-        Task {
-            do {
-                try await StorageManager.shared.delete(id: item.id)
-                await MainActor.run {
-                    self.items.removeAll { $0.id == item.id }
-                    self.totalCount -= 1
-                }
-            } catch {
-                // Ignore
-            }
-        }
-    }
-    
-    func togglePin(_ item: ClipItem) {
-        Task {
-            do {
-                try await StorageManager.shared.togglePinned(id: item.id)
-                await MainActor.run {
-                    if let index = self.items.firstIndex(where: { $0.id == item.id }) {
-                        self.items[index].pinned.toggle()
-                    }
-                }
-            } catch {
-                // Ignore
-            }
-        }
-    }
-    
-    func clearAll() {
-        Task {
-            do {
-                try await StorageManager.shared.clearAll(keepPinned: true)
-                await MainActor.run {
-                    self.loadInitial()
-                }
-            } catch {
-                // Ignore
-            }
+            return Color.clear
         }
     }
 }
 
 #Preview {
     PopoverView()
+        .environmentObject(ClipboardViewModel())
+        .environmentObject(AppSettings.shared)
 }

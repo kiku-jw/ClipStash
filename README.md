@@ -1,5 +1,9 @@
 # ClipStash
 
+[![Build](https://github.com/kiku-jw/ClipStash/actions/workflows/ci.yml/badge.svg)](https://github.com/kiku-jw/ClipStash/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-brightgreen)](https://www.apple.com/macos/)
+
 Lightweight, privacy-first clipboard history manager for macOS menu bar.
 
 ## Features
@@ -12,7 +16,7 @@ Lightweight, privacy-first clipboard history manager for macOS menu bar.
 
 ## Requirements
 
-- macOS 13.0 (Ventura) or later
+- macOS 14.0 (Sonoma) or later
 - Xcode 15+ for building
 
 ## Installation
@@ -20,7 +24,7 @@ Lightweight, privacy-first clipboard history manager for macOS menu bar.
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/ClipStash.git
+git clone https://github.com/kiku-jw/ClipStash.git
 cd ClipStash
 open ClipStash.xcodeproj
 # Build with ⌘B, Run with ⌘R

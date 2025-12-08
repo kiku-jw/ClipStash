@@ -1,121 +1,172 @@
 import XCTest
 @testable import ClipStash
 
-/// Unit tests for ExportService
 final class ExportServiceTests: XCTestCase {
     
-    // MARK: - Task 8: Markdown Format
+    var tempExportDir: URL!
     
-    func testMarkdownHeader() {
-        // Arrange
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
-        let timestamp = dateFormatter.string(from: Date())
+    override func setUp() async throws {
+        tempExportDir = FileManager.default.temporaryDirectory.appendingPathComponent("ClipStashExportTests_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempExportDir, withIntermediateDirectories: true)
         
-        let expectedPrefix = "# Clipboard Export — "
-        
-        // Assert format starts correctly
-        XCTAssertTrue(expectedPrefix.hasPrefix("# Clipboard Export"))
+        // Ensure storage is open
+        try await StorageManager.shared.open()
     }
     
-    func testMarkdownEntryFormat() {
-        // Arrange
-        let item = ClipItem(
-            id: 1,
-            createdAt: Date(),
+    override func tearDown() async throws {
+        // Clean up temp directory
+        try? FileManager.default.removeItem(at: tempExportDir)
+    }
+    
+    // MARK: - Tests
+    
+    func testMarkdownExport() async throws {
+        // Clear and insert test data
+        try await StorageManager.shared.clearAll(keepPinned: false)
+        
+        _ = try await StorageManager.shared.insert(
             type: .text,
-            textContent: "Test content",
-            imagePath: nil,
+            textContent: "Test export content",
+            imageData: nil,
             sourceBundleId: "com.test.app",
-            contentHash: "hash123",
-            pinned: false,
-            protected: false,
-            byteSize: 12
+            contentHash: "exporthash1",
+            byteSize: 19
         )
         
-        // Assert preview is correct
-        XCTAssertEqual(item.preview, "Test content")
-        XCTAssertEqual(item.sourceAppName, "App")
+        let result = try await ExportService.shared.export(
+            scope: .lastN(10),
+            format: .markdown,
+            includeImageRefs: false,
+            destinationDir: tempExportDir
+        )
+        
+        XCTAssertEqual(result.files.count, 1)
+        XCTAssertEqual(result.itemCount, 1)
+        
+        // Verify file content
+        let content = try String(contentsOf: result.files[0], encoding: .utf8)
+        XCTAssertTrue(content.contains("Clipboard Export"))
+        XCTAssertTrue(content.contains("Test export content"))
+        XCTAssertTrue(content.contains("com.test.app"))
     }
     
-    // MARK: - Task 9: Auto-Split Logic
-    
-    func testAutoSplitCalculation() {
-        // Arrange
-        let targetChunkBytes = 180_000
-        let itemSize = 50_000 // 50KB per item
-        let itemCount = 10 // total 500KB
+    func testPlainTextExport() async throws {
+        try await StorageManager.shared.clearAll(keepPinned: false)
         
-        // Act
-        let expectedFiles = Int(ceil(Double(itemCount * itemSize) / Double(targetChunkBytes)))
-        
-        // Assert
-        XCTAssertEqual(expectedFiles, 3, "500KB should split into 3 files at 180KB target")
-    }
-    
-    func testSmallExportNoSplit() {
-        // Arrange
-        let targetChunkBytes = 180_000
-        let totalBytes = 100_000 // 100KB
-        
-        // Act
-        let expectedFiles = totalBytes < targetChunkBytes ? 1 : Int(ceil(Double(totalBytes) / Double(targetChunkBytes)))
-        
-        // Assert
-        XCTAssertEqual(expectedFiles, 1, "100KB should not split")
-    }
-    
-    // MARK: - ClipItem Model Tests
-    
-    func testClipItemPreviewTruncation() {
-        // Arrange
-        let longText = String(repeating: "A", count: 200)
-        let item = ClipItem(
-            id: 1,
-            createdAt: Date(),
+        _ = try await StorageManager.shared.insert(
             type: .text,
-            textContent: longText,
-            imagePath: nil,
+            textContent: "Plain text export",
+            imageData: nil,
             sourceBundleId: nil,
-            contentHash: "hash",
-            pinned: false,
-            protected: false,
-            byteSize: 200
+            contentHash: "plaintexthash",
+            byteSize: 17
         )
         
-        // Assert
-        XCTAssertEqual(item.preview.count, 103, "Preview should be 100 chars + '...'")
-        XCTAssertTrue(item.preview.hasSuffix("..."))
-    }
-    
-    func testClipItemImagePreview() {
-        // Arrange
-        let item = ClipItem(
-            id: 1,
-            createdAt: Date(),
-            type: .image,
-            textContent: nil,
-            imagePath: "image.png",
-            sourceBundleId: nil,
-            contentHash: "hash",
-            pinned: false,
-            protected: false,
-            byteSize: 1000
+        let result = try await ExportService.shared.export(
+            scope: .lastN(10),
+            format: .plainText,
+            includeImageRefs: false,
+            destinationDir: tempExportDir
         )
         
-        // Assert
-        XCTAssertEqual(item.preview, "[Image]")
+        XCTAssertEqual(result.files.count, 1)
+        
+        let file = result.files[0]
+        XCTAssertTrue(file.pathExtension == "txt")
+        
+        let content = try String(contentsOf: file, encoding: .utf8)
+        XCTAssertTrue(content.contains("Plain text export"))
     }
     
-    func testSourceAppNameExtraction() {
-        // Arrange
-        let bundleId = "com.apple.Safari"
+    func testAutoSplit() async throws {
+        try await StorageManager.shared.clearAll(keepPinned: false)
         
-        // Act
-        let components = bundleId.split(separator: ".")
-        let appName = components.last.map { String($0).capitalized }
+        // Insert items with large content to trigger splitting
+        // Target is ~180KB, so insert enough to exceed that
+        let largeText = String(repeating: "A", count: 50_000) // 50KB per item
         
-        // Assert
-        XCTAssertEqual(appName, "Safari")
+        for i in 0..<5 {
+            _ = try await StorageManager.shared.insert(
+                type: .text,
+                textContent: "\(largeText) Item \(i)",
+                imageData: nil,
+                sourceBundleId: nil,
+                contentHash: "largehash\(i)",
+                byteSize: 50_006
+            )
+        }
+        
+        let result = try await ExportService.shared.export(
+            scope: .lastN(100),
+            format: .markdown,
+            includeImageRefs: false,
+            destinationDir: tempExportDir
+        )
+        
+        // Should have created multiple files due to auto-split
+        XCTAssertGreaterThan(result.files.count, 1)
+        
+        // All files should be under ~200KB
+        for file in result.files {
+            let attrs = try FileManager.default.attributesOfItem(atPath: file.path)
+            let size = attrs[.size] as? Int ?? 0
+            XCTAssertLessThan(size, 250_000) // Allow some margin
+        }
+    }
+    
+    func testPinnedOnlyExport() async throws {
+        try await StorageManager.shared.clearAll(keepPinned: false)
+        
+        // Insert regular item
+        _ = try await StorageManager.shared.insert(
+            type: .text,
+            textContent: "Not pinned",
+            imageData: nil,
+            sourceBundleId: nil,
+            contentHash: "notpinned",
+            byteSize: 10
+        )
+        
+        // Insert and pin item
+        let pinnedId = try await StorageManager.shared.insert(
+            type: .text,
+            textContent: "Pinned item",
+            imageData: nil,
+            sourceBundleId: nil,
+            contentHash: "pinnedhash",
+            byteSize: 11
+        )
+        try await StorageManager.shared.setPinned(id: pinnedId, pinned: true)
+        
+        let result = try await ExportService.shared.export(
+            scope: .pinnedOnly,
+            format: .markdown,
+            includeImageRefs: false,
+            destinationDir: tempExportDir
+        )
+        
+        XCTAssertEqual(result.itemCount, 1)
+        
+        let content = try String(contentsOf: result.files[0], encoding: .utf8)
+        XCTAssertTrue(content.contains("Pinned item"))
+        XCTAssertFalse(content.contains("Not pinned"))
+    }
+    
+    func testEmptyExportThrows() async throws {
+        try await StorageManager.shared.clearAll(keepPinned: false)
+        
+        do {
+            _ = try await ExportService.shared.export(
+                scope: .pinnedOnly, // No pinned items
+                format: .markdown,
+                includeImageRefs: false,
+                destinationDir: tempExportDir
+            )
+            XCTFail("Should have thrown noItemsToExport")
+        } catch ExportError.noItemsToExport {
+            // Expected
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
     }
 }

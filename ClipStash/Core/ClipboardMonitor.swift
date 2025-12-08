@@ -15,7 +15,7 @@ final class ClipboardMonitor: ObservableObject {
     private let debounceInterval: TimeInterval = 0.5
     private let pollInterval: TimeInterval = 0.3
     
-    private let settings = Settings.shared
+    private let settings = AppSettings.shared
     
     // MARK: - Lifecycle
     

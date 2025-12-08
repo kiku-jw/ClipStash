@@ -1,232 +1,207 @@
 import SwiftUI
 import AppKit
 
-/// Row view for a single clipboard item with image thumbnail support
+/// Row view for a clipboard item with image preview
 struct ClipItemRow: View {
     let item: ClipItem
-    let isSelected: Bool
-    let onCopy: () -> Void
-    let onDelete: () -> Void
-    let onTogglePin: () -> Void
-    
-    @State private var isHovered = false
-    @State private var thumbnail: NSImage?
+    @State private var thumbnailImage: NSImage?
     
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            // Pin indicator or content preview
-            if item.pinned {
-                Image(systemName: "pin.fill")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-                    .frame(width: 40, height: 40)
-            } else if item.type == .image {
-                // Image thumbnail
-                thumbnailView
-                    .frame(width: 40, height: 40)
-                    .cornerRadius(4)
-                    .clipped()
-            } else {
-                Image(systemName: "doc.text")
-                    .font(.title3)
-                    .foregroundColor(.secondary)
-                    .frame(width: 40, height: 40)
-            }
+        HStack(alignment: .top, spacing: 10) {
+            // Thumbnail / Icon
+            thumbnailView
+                .frame(width: 40, height: 40)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(6)
             
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 // Content preview
-                if item.type == .text {
-                    Text(item.preview)
-                        .font(.system(.body))
-                        .lineLimit(2)
-                        .foregroundColor(.primary)
-                } else {
-                    Text("Image")
-                        .font(.system(.body))
-                        .foregroundColor(.primary)
-                    
-                    if let size = formatByteSize(item.byteSize) {
-                        Text(size)
+                HStack(spacing: 4) {
+                    if item.pinned {
+                        Image(systemName: "pin.fill")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.orange)
                     }
+                    
+                    if item.protected {
+                        Image(systemName: "lock.fill")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    }
+                    
+                    Text(item.preview)
+                        .lineLimit(2)
+                        .font(.system(size: 12))
+                        .foregroundColor(.primary)
                 }
                 
                 // Metadata
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     if let appName = item.sourceAppName {
-                        Text(appName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text("•")
-                            .font(.caption)
-                            .foregroundColor(.secondary.opacity(0.5))
+                        HStack(spacing: 2) {
+                            Image(systemName: "app.fill")
+                                .font(.system(size: 8))
+                            Text(appName)
+                        }
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color(NSColor.controlBackgroundColor).opacity(0.8))
+                        .cornerRadius(4)
                     }
                     
-                    Text(item.formattedTime)
-                        .font(.caption)
+                    HStack(spacing: 2) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 8))
+                        Text(item.formattedTime)
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    
+                    Text("•")
+                        .font(.caption2)
+                        .foregroundColor(.secondary.opacity(0.5))
+                    
+                    Text(formatBytes(item.byteSize))
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                 }
             }
             
             Spacer()
-            
-            // Action buttons (visible on hover)
-            if isHovered || isSelected {
-                HStack(spacing: 4) {
-                    Button(action: onTogglePin) {
-                        Image(systemName: item.pinned ? "pin.slash" : "pin")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .help(item.pinned ? "Unpin" : "Pin")
-                    
-                    Button(action: onCopy) {
-                        Image(systemName: "doc.on.clipboard")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Copy")
-                    
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Delete")
-                }
-            }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(isSelected ? Color.accentColor.opacity(0.2) : (isHovered ? Color.secondary.opacity(0.1) : Color.clear))
-        )
+        .padding(.vertical, 6)
+        .padding(.horizontal, 4)
         .contentShape(Rectangle())
-        .onHover { hovering in
-            isHovered = hovering
-        }
         .task {
             await loadThumbnail()
         }
     }
     
-    // MARK: - Thumbnail View
-    
     @ViewBuilder
     private var thumbnailView: some View {
-        if let thumbnail = thumbnail {
-            Image(nsImage: thumbnail)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } else {
-            Rectangle()
-                .fill(Color.secondary.opacity(0.2))
-                .overlay {
-                    Image(systemName: "photo")
-                        .foregroundColor(.secondary)
+        switch item.type {
+        case .text:
+            // Text icon with accent
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                Image(systemName: "doc.text.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(.blue)
+            }
+            
+        case .image:
+            // Image thumbnail
+            if let image = thumbnailImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 40, height: 40)
+                    .clipped()
+                    .cornerRadius(6)
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.purple.opacity(0.2), Color.purple.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    Image(systemName: "photo.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.purple)
                 }
+            }
         }
     }
-    
-    // MARK: - Helpers
     
     private func loadThumbnail() async {
         guard item.type == .image, let imagePath = item.imagePath else { return }
         
         let url = await StorageManager.shared.imageURL(for: imagePath)
         
-        // Load and resize on background thread
-        let loadedThumbnail = await Task.detached(priority: .utility) {
+        // Load on background thread
+        let image = await Task.detached(priority: .background) {
             guard let image = NSImage(contentsOf: url) else { return nil as NSImage? }
             
-            // Create thumbnail (80x80 for retina)
-            let thumbnailSize = NSSize(width: 80, height: 80)
-            let thumbnail = NSImage(size: thumbnailSize)
-            
-            thumbnail.lockFocus()
-            NSGraphicsContext.current?.imageInterpolation = .high
-            
+            // Create thumbnail (max 80x80 for retina)
+            let targetSize = NSSize(width: 80, height: 80)
             let aspectRatio = image.size.width / image.size.height
-            var drawRect: NSRect
             
+            var thumbnailSize: NSSize
             if aspectRatio > 1 {
-                // Wider than tall
-                let height = thumbnailSize.height
-                let width = height * aspectRatio
-                let x = (thumbnailSize.width - width) / 2
-                drawRect = NSRect(x: x, y: 0, width: width, height: height)
+                thumbnailSize = NSSize(width: targetSize.width, height: targetSize.width / aspectRatio)
             } else {
-                // Taller than wide
-                let width = thumbnailSize.width
-                let height = width / aspectRatio
-                let y = (thumbnailSize.height - height) / 2
-                drawRect = NSRect(x: 0, y: y, width: width, height: height)
+                thumbnailSize = NSSize(width: targetSize.height * aspectRatio, height: targetSize.height)
             }
             
-            image.draw(in: drawRect, from: .zero, operation: .copy, fraction: 1.0)
+            let thumbnail = NSImage(size: thumbnailSize)
+            thumbnail.lockFocus()
+            image.draw(in: NSRect(origin: .zero, size: thumbnailSize),
+                      from: NSRect(origin: .zero, size: image.size),
+                      operation: .copy,
+                      fraction: 1.0)
             thumbnail.unlockFocus()
             
             return thumbnail
         }.value
         
         await MainActor.run {
-            self.thumbnail = loadedThumbnail
+            self.thumbnailImage = image
         }
     }
     
-    private func formatByteSize(_ bytes: Int) -> String? {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(bytes))
+    private func formatBytes(_ bytes: Int) -> String {
+        if bytes < 1024 {
+            return "\(bytes) B"
+        } else if bytes < 1024 * 1024 {
+            return String(format: "%.1f KB", Double(bytes) / 1024)
+        } else {
+            return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
+        }
     }
 }
 
 #Preview {
     VStack(spacing: 0) {
-        ClipItemRow(
-            item: ClipItem(
-                id: 1,
-                createdAt: Date(),
-                type: .text,
-                textContent: "Hello, World! This is a sample clipboard item.",
-                imagePath: nil,
-                sourceBundleId: "com.apple.Safari",
-                contentHash: "abc123",
-                pinned: false,
-                protected: false,
-                byteSize: 100
-            ),
-            isSelected: false,
-            onCopy: {},
-            onDelete: {},
-            onTogglePin: {}
-        )
+        ClipItemRow(item: ClipItem(
+            id: 1,
+            createdAt: Date(),
+            type: .text,
+            textContent: "Hello, this is a sample clipboard text that might be a bit longer to show truncation.",
+            imagePath: nil,
+            sourceBundleId: "com.apple.Safari",
+            contentHash: "abc123",
+            pinned: true,
+            protected: false,
+            byteSize: 512
+        ))
         
         Divider()
         
-        ClipItemRow(
-            item: ClipItem(
-                id: 2,
-                createdAt: Date().addingTimeInterval(-3600),
-                type: .image,
-                textContent: nil,
-                imagePath: "test.png",
-                sourceBundleId: "com.apple.Preview",
-                contentHash: "img123",
-                pinned: false,
-                protected: false,
-                byteSize: 256000
-            ),
-            isSelected: true,
-            onCopy: {},
-            onDelete: {},
-            onTogglePin: {}
-        )
+        ClipItemRow(item: ClipItem(
+            id: 2,
+            createdAt: Date().addingTimeInterval(-3600),
+            type: .image,
+            textContent: nil,
+            imagePath: "test.png",
+            sourceBundleId: "com.apple.Preview",
+            contentHash: "def456",
+            pinned: false,
+            protected: true,
+            byteSize: 102400
+        ))
     }
-    .frame(width: 350)
+    .frame(width: 320)
+    .padding()
 }

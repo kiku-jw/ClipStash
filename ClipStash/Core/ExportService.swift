@@ -63,9 +63,9 @@ actor ExportService {
             destinationDir: destDir
         )
         
-        let totalBytes: Int = files.reduce(0) { sum, url in
-            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-            return sum + size
+        let totalBytes: Int = files.reduce(0) { (sum: Int, url: URL) -> Int in
+            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+            return sum + (attrs?[.size] as? Int ?? 0)
         }
         
         return ExportResult(

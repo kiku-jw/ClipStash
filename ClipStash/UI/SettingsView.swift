@@ -1,234 +1,543 @@
 import SwiftUI
 import ServiceManagement
 
-/// Settings view for configuring ClipStash
+/// Settings view with detailed, organized tabs
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var settings = Settings.shared
+    @EnvironmentObject var settings: AppSettings
+    @State private var newBundleId = ""
+    @State private var diagnostics: Diagnostics?
+    @State private var showResetConfirmation = false
     
-    @State private var newIgnoreBundleId = ""
-    @State private var showingDiagnostics = false
+    struct Diagnostics {
+        let itemCount: Int
+        let pinnedCount: Int
+        let dbSize: Int64
+        let imagesSize: Int64
+        let fts5Available: Bool
+        let isMonitoring: Bool
+    }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Settings")
-                    .font(.headline)
-                Spacer()
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark.circle.fill")
+        TabView {
+            generalTab
+                .tabItem {
+                    Label("General", systemImage: "gear")
+                }
+            
+            captureTab
+                .tabItem {
+                    Label("Capture", systemImage: "arrow.down.doc")
+                }
+            
+            limitsTab
+                .tabItem {
+                    Label("Storage", systemImage: "externaldrive")
+                }
+            
+            privacyTab
+                .tabItem {
+                    Label("Privacy", systemImage: "hand.raised")
+                }
+            
+            exportTab
+                .tabItem {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+            
+            diagnosticsTab
+                .tabItem {
+                    Label("Advanced", systemImage: "wrench.and.screwdriver")
+                }
+        }
+        .padding()
+        .frame(width: 500, height: 400)
+    }
+    
+    // MARK: - General Tab
+    
+    private var generalTab: some View {
+        Form {
+            Section {
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(isOn: $settings.launchAtLogin) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Launch at Login")
+                                    .font(.body)
+                                Text("Start ClipStash automatically when you log in")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .onChange(of: settings.launchAtLogin) { oldValue, newValue in
+                            updateLaunchAtLogin(enabled: newValue)
+                        }
+                        
+                        Divider()
+                        
+                        Toggle(isOn: $settings.globalHotkeyEnabled) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Global Hotkey")
+                                    .font(.body)
+                                Text("⌘⇧V to open ClipStash from anywhere")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .padding(8)
+                }
+                
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                    Text("Move app to /Applications for Launch at Login to work reliably.")
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                .buttonStyle(.plain)
+                .padding(.top, 4)
             }
-            .padding()
-            
-            Divider()
-            
-            Form {
-                // History section
-                Section("History") {
-                    HStack {
-                        Text("History Limit")
-                        Spacer()
-                        TextField("", value: $settings.historyLimit, format: .number)
-                            .frame(width: 80)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit { settings.validateHistoryLimit() }
-                        Text("items")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("Text Max Size")
-                        Spacer()
-                        TextField("", value: $settings.textMaxBytes, format: .number)
-                            .frame(width: 100)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit { settings.validateTextMaxBytes() }
-                        Text("bytes")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Toggle("Save Images", isOn: $settings.saveImages)
-                    
-                    if settings.saveImages {
+        }
+        .padding()
+    }
+    
+    // MARK: - Capture Tab
+    
+    private var captureTab: some View {
+        Form {
+            Section {
+                GroupBox(label: Label("Content Types", systemImage: "doc.on.doc")) {
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("Image Max Size")
+                            Image(systemName: "doc.text")
+                                .foregroundColor(.blue)
+                                .frame(width: 20)
+                            Text("Text")
                             Spacer()
-                            TextField("", value: $settings.imageMaxBytes, format: .number)
-                                .frame(width: 100)
-                                .textFieldStyle(.roundedBorder)
-                                .onSubmit { settings.validateImageMaxBytes() }
-                            Text("bytes")
+                            Text("Always captured")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Divider()
+                        
+                        Toggle(isOn: $settings.saveImages) {
+                            HStack {
+                                Image(systemName: "photo")
+                                    .foregroundColor(.purple)
+                                    .frame(width: 20)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Images")
+                                    Text("Capture screenshots and copied images")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(8)
+                }
+                
+                GroupBox(label: Label("Processing", systemImage: "wand.and.stars")) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(isOn: $settings.dedupEnabled) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Skip Duplicates")
+                                Text("Don't save identical content twice")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        Toggle(isOn: $settings.bytePreserveMode) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Preserve Whitespace")
+                                Text("Keep exact spaces, tabs, and newlines")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .padding(8)
+                }
+            }
+        }
+        .padding()
+    }
+    
+    // MARK: - Limits Tab
+    
+    private var limitsTab: some View {
+        Form {
+            Section {
+                GroupBox(label: Label("History Size", systemImage: "clock.arrow.circlepath")) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Maximum Items")
+                            Spacer()
+                            Text("\(settings.historyLimit)")
+                                .font(.headline)
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Slider(value: Binding(
+                            get: { Double(settings.historyLimit) },
+                            set: { settings.historyLimit = Int($0) }
+                        ), in: 100...2000, step: 100)
+                        
+                        HStack {
+                            Text("100")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("2000")
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
+                    .padding(8)
                 }
                 
-                // Behavior section
-                Section("Behavior") {
-                    Toggle("Deduplication", isOn: $settings.dedupEnabled)
-                        .help("Skip duplicate clipboard content")
-                    
-                    Toggle("Byte Preserve Mode", isOn: $settings.bytePreserveMode)
-                        .help("Keep exact whitespace, don't trim")
-                    
-                    Toggle("Launch at Login", isOn: $settings.launchAtLogin)
-                        .onChange(of: settings.launchAtLogin) { newValue in
-                            updateLaunchAtLogin(newValue)
-                        }
-                }
-                
-                // Ignore List section
-                Section("Ignore List") {
-                    Text("Apps whose clipboard content will be ignored:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    ForEach(settings.ignoredBundleIds, id: \.self) { bundleId in
-                        HStack {
-                            Text(bundleId)
-                                .font(.system(.body, design: .monospaced))
-                            Spacer()
-                            Button(action: { settings.removeIgnoredBundleId(bundleId) }) {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundColor(.red)
+                GroupBox(label: Label("Size Limits", systemImage: "arrow.up.arrow.down")) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "doc.text")
+                                    .foregroundColor(.blue)
+                                Text("Text")
+                                Spacer()
+                                Text(formatBytes(settings.textMaxBytes))
+                                    .font(.headline)
+                                    .foregroundColor(.blue)
                             }
-                            .buttonStyle(.plain)
+                            
+                            Slider(value: Binding(
+                                get: { Double(settings.textMaxBytes) },
+                                set: { settings.textMaxBytes = Int($0) }
+                            ), in: 10_000...1_000_000, step: 10_000)
                         }
-                    }
-                    
-                    HStack {
-                        TextField("Bundle ID (e.g., com.1password.1password)", text: $newIgnoreBundleId)
-                            .textFieldStyle(.roundedBorder)
                         
-                        Button(action: {
-                            if !newIgnoreBundleId.isEmpty {
-                                settings.addIgnoredBundleId(newIgnoreBundleId)
-                                newIgnoreBundleId = ""
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "photo")
+                                    .foregroundColor(.purple)
+                                Text("Image")
+                                Spacer()
+                                Text(formatBytes(settings.imageMaxBytes))
+                                    .font(.headline)
+                                    .foregroundColor(.purple)
                             }
-                        }) {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.green)
+                            
+                            Slider(value: Binding(
+                                get: { Double(settings.imageMaxBytes) },
+                                set: { settings.imageMaxBytes = Int($0) }
+                            ), in: 1_000_000...20_000_000, step: 1_000_000)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(newIgnoreBundleId.isEmpty)
                     }
-                }
-                
-                // About section
-                Section("About") {
-                    HStack {
-                        Text("ClipStash")
-                        Spacer()
-                        Text("v1.0.0")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Button("Show Diagnostics") {
-                        showingDiagnostics = true
-                    }
+                    .padding(8)
                 }
             }
-            .formStyle(.grouped)
-            .padding()
         }
-        .frame(width: 400, height: 500)
-        .sheet(isPresented: $showingDiagnostics) {
-            DiagnosticsView()
+        .padding()
+    }
+    
+    // MARK: - Privacy Tab
+    
+    private var privacyTab: some View {
+        Form {
+            Section {
+                GroupBox(label: Label("Automatic Protection", systemImage: "shield.checkered")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Password managers")
+                            Spacer()
+                            Text("Auto-ignored")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Divider()
+                        
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Transient clipboard")
+                            Spacer()
+                            Text("Auto-ignored")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(8)
+                }
+                
+                GroupBox(label: Label("Ignored Apps", systemImage: "app.badge.checkmark")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Clipboard from these apps will not be captured")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        HStack {
+                            TextField("com.example.app", text: $newBundleId)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                            
+                            Button {
+                                if !newBundleId.isEmpty {
+                                    settings.addIgnoredBundleId(newBundleId)
+                                    newBundleId = ""
+                                }
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(newBundleId.isEmpty)
+                        }
+                        
+                        if !settings.ignoredBundleIds.isEmpty {
+                            ScrollView {
+                                VStack(spacing: 4) {
+                                    ForEach(settings.ignoredBundleIds, id: \.self) { bundleId in
+                                        HStack {
+                                            Text(bundleId)
+                                                .font(.system(.caption, design: .monospaced))
+                                            Spacer()
+                                            Button {
+                                                settings.removeIgnoredBundleId(bundleId)
+                                            } label: {
+                                                Image(systemName: "xmark.circle")
+                                                    .foregroundColor(.red.opacity(0.7))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color(NSColor.controlBackgroundColor))
+                                        .cornerRadius(4)
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 80)
+                        }
+                    }
+                    .padding(8)
+                }
+            }
+        }
+        .padding()
+    }
+    
+    // MARK: - Export Tab
+    
+    private var exportTab: some View {
+        Form {
+            Section {
+                GroupBox(label: Label("NotebookLM Integration", systemImage: "brain")) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "doc.richtext")
+                                .foregroundColor(.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Markdown Export")
+                                Text("Optimized for NotebookLM upload")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Text("Default")
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.2))
+                                .cornerRadius(4)
+                        }
+                        
+                        Divider()
+                        
+                        HStack {
+                            Image(systemName: "scissors")
+                                .foregroundColor(.orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Auto-split Large Exports")
+                                Text("Files split at ~180KB for compatibility")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                        }
+                    }
+                    .padding(8)
+                }
+                
+                Toggle(isOn: $settings.exportWarningShown) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Skip Export Warning")
+                        Text("Don't show sensitive data warning before export")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.top, 8)
+            }
+        }
+        .padding()
+    }
+    
+    // MARK: - Diagnostics Tab
+    
+    private var diagnosticsTab: some View {
+        Form {
+            Section {
+                GroupBox(label: Label("Status", systemImage: "heart.text.square")) {
+                    VStack(spacing: 8) {
+                        if let diag = diagnostics {
+                            StatusRow(icon: "doc.on.doc", label: "Total Items", value: "\(diag.itemCount)")
+                            StatusRow(icon: "pin", label: "Pinned", value: "\(diag.pinnedCount)")
+                            StatusRow(icon: "externaldrive", label: "Database", value: formatBytes(Int(diag.dbSize)))
+                            StatusRow(icon: "photo.stack", label: "Images", value: formatBytes(Int(diag.imagesSize)))
+                            
+                            Divider()
+                            
+                            StatusRow(
+                                icon: diag.fts5Available ? "magnifyingglass" : "text.magnifyingglass",
+                                label: "Search Engine",
+                                value: diag.fts5Available ? "FTS5" : "Basic",
+                                valueColor: diag.fts5Available ? .green : .orange
+                            )
+                            
+                            StatusRow(
+                                icon: diag.isMonitoring ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash",
+                                label: "Monitoring",
+                                value: diag.isMonitoring ? "Active" : "Stopped",
+                                valueColor: diag.isMonitoring ? .green : .red
+                            )
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
+                    }
+                    .padding(8)
+                }
+                
+                HStack {
+                    Button {
+                        Task { await loadDiagnostics() }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    
+                    Spacer()
+                    
+                    Button(role: .destructive) {
+                        showResetConfirmation = true
+                    } label: {
+                        Label("Clear All History", systemImage: "trash")
+                    }
+                }
+                .padding(.top, 8)
+            }
+        }
+        .padding()
+        .onAppear {
+            Task { await loadDiagnostics() }
+        }
+        .confirmationDialog("Clear All History?", isPresented: $showResetConfirmation) {
+            Button("Clear All", role: .destructive) {
+                Task {
+                    try? await StorageManager.shared.clearAll(keepPinned: false)
+                    await loadDiagnostics()
+                }
+            }
+            Button("Keep Pinned Items") {
+                Task {
+                    try? await StorageManager.shared.clearAll(keepPinned: true)
+                    await loadDiagnostics()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
     
-    private func updateLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
+    // MARK: - Helpers
+    
+    private func loadDiagnostics() async {
+        let itemCount = (try? await StorageManager.shared.count()) ?? 0
+        let pinnedCount = itemCount - ((try? await StorageManager.shared.countUnpinned()) ?? 0)
+        let dbSize = await StorageManager.shared.getDatabaseSize()
+        let imagesSize = await StorageManager.shared.getImagesFolderSize()
+        let fts5Available = await StorageManager.shared.isFTS5Available
+        let isMonitoring = await MainActor.run { ClipboardMonitor.shared.isRunning }
+        
+        await MainActor.run {
+            diagnostics = Diagnostics(
+                itemCount: itemCount,
+                pinnedCount: pinnedCount,
+                dbSize: dbSize,
+                imagesSize: imagesSize,
+                fts5Available: fts5Available,
+                isMonitoring: isMonitoring
+            )
+        }
+    }
+    
+    private func updateLaunchAtLogin(enabled: Bool) {
+        if #available(macOS 13.0, *) {
+            do {
+                if enabled {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("Failed to update launch at login: \(error)")
             }
-        } catch {
-            // Revert the toggle on error
-            settings.launchAtLogin = !enabled
-            print("Failed to update launch at login: \(error)")
+        }
+    }
+    
+    private func formatBytes(_ bytes: Int) -> String {
+        if bytes < 1024 {
+            return "\(bytes) B"
+        } else if bytes < 1024 * 1024 {
+            return String(format: "%.1f KB", Double(bytes) / 1024)
+        } else {
+            return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
         }
     }
 }
 
-// MARK: - Diagnostics View
+// MARK: - Status Row Component
 
-struct DiagnosticsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var itemCount = 0
-    @State private var dbSize: Int64 = 0
-    @State private var imagesSize: Int64 = 0
-    @State private var fts5Available = false
+struct StatusRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    var valueColor: Color = .primary
     
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Diagnostics")
-                .font(.headline)
-            
-            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 8) {
-                GridRow {
-                    Text("Total Items:")
-                    Text("\(itemCount)")
-                        .foregroundColor(.secondary)
-                }
-                
-                GridRow {
-                    Text("Database Size:")
-                    Text(formatBytes(dbSize))
-                        .foregroundColor(.secondary)
-                }
-                
-                GridRow {
-                    Text("Images Folder:")
-                    Text(formatBytes(imagesSize))
-                        .foregroundColor(.secondary)
-                }
-                
-                GridRow {
-                    Text("FTS5 Search:")
-                    Text(fts5Available ? "Available" : "Fallback (LIKE)")
-                        .foregroundColor(fts5Available ? .green : .orange)
-                }
-            }
-            .padding()
-            
-            Button("Close") {
-                dismiss()
-            }
+        HStack {
+            Image(systemName: icon)
+                .frame(width: 16)
+                .foregroundColor(.secondary)
+            Text(label)
+                .font(.caption)
+            Spacer()
+            Text(value)
+                .font(.caption.bold())
+                .foregroundColor(valueColor)
         }
-        .padding()
-        .frame(width: 300)
-        .onAppear {
-            loadDiagnostics()
-        }
-    }
-    
-    private func loadDiagnostics() {
-        Task {
-            do {
-                itemCount = try await StorageManager.shared.count()
-                dbSize = await StorageManager.shared.getDatabaseSize()
-                imagesSize = await StorageManager.shared.getImagesFolderSize()
-                fts5Available = await StorageManager.shared.isFTS5Available
-            } catch {
-                // Ignore
-            }
-        }
-    }
-    
-    private func formatBytes(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
     }
 }
 
 #Preview {
     SettingsView()
+        .environmentObject(AppSettings.shared)
 }
