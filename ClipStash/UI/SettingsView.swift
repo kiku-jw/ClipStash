@@ -393,47 +393,51 @@ struct SettingsView: View {
     // MARK: - Export Tab
     
     private var exportTab: some View {
-        Form {
-            Section {
-                // Scope picker
-                HStack {
-                    Text("Items to export")
-                    Spacer()
-                    Picker("", selection: $settings.exportScope) {
-                        Text("50").tag(50)
-                        Text("100").tag(100)
-                        Text("200").tag(200)
-                        Text("500").tag(500)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 180)
+        VStack(spacing: 20) {
+            Spacer()
+            
+            // Items count
+            VStack(spacing: 6) {
+                Text("Items to export")
+                    .font(.headline)
+                Picker("", selection: $settings.exportScope) {
+                    Text("50").tag(50)
+                    Text("100").tag(100)
+                    Text("200").tag(200)
+                    Text("500").tag(500)
                 }
-                
-                // Format picker
-                HStack {
-                    Text("Format")
-                    Spacer()
-                    Picker("", selection: $settings.exportFormat) {
-                        Text("Markdown").tag("markdown")
-                        Text("Plain Text").tag("plaintext")
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 160)
+                .pickerStyle(.segmented)
+                .frame(width: 200)
+            }
+            
+            // Format
+            VStack(spacing: 6) {
+                Text("Format")
+                    .font(.headline)
+                Picker("", selection: $settings.exportFormat) {
+                    Text("Markdown").tag("markdown")
+                    Text("Plain Text").tag("plaintext")
                 }
-                
-                // Toggles
+                .pickerStyle(.segmented)
+                .frame(width: 200)
+            }
+            
+            Divider()
+                .frame(width: 250)
+            
+            // Options
+            VStack(alignment: .leading, spacing: 8) {
                 Toggle("Export pinned only", isOn: $settings.exportPinnedOnly)
                 Toggle("Skip export warning", isOn: $settings.exportWarningShown)
-                
-                // Info
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(.blue)
-                    Text("Large exports auto-split at ~180KB for NotebookLM")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
             }
+            .frame(width: 200)
+            
+            Spacer()
+            
+            // Info footer
+            Text("Large exports auto-split at ~180KB")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
         .padding()
     }
