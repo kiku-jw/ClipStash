@@ -446,36 +446,90 @@
                     <div class="feature-card">
                         <div class="feature-icon">🔒</div>
                         <h3>Zero Network Access</h3>
-                        <p>No internet connection. Ever. Your clipboard data never leaves your machine. Sandbox
-                            enforced.</p>
+                        <p>No internet connection. Ever. Sandbox enforced — we literally cannot connect.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">⚡</div>
                         <h3>Lightning Fast Search</h3>
                         <p>SQLite FTS5 full-text search. Find any clip instantly, even with thousands of items.</p>
                     </div>
-                    <div class="feature-card">
+                    <div class="feature-card"
+                        style="border-color: var(--accent); background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0,212,255,0.1) 100%);">
                         <div class="feature-icon">📤</div>
-                        <h3>NotebookLM Export</h3>
-                        <p>Export to Markdown with auto-split for NotebookLM. Turn your clipboard history into
-                            knowledge.</p>
+                        <h3>NotebookLM Export <span style="color: var(--accent); font-size: 0.7em;">UNIQUE</span></h3>
+                        <p>The only clipboard manager with NotebookLM-optimized export. Auto-splits to ~180KB files.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🪶</div>
                         <h3>Ultralight</h3>
-                        <p>&lt;60MB RAM, &lt;0.5% CPU idle. Runs silently in menu bar without impacting performance.</p>
+                        <p>&lt;60MB RAM, &lt;0.5% CPU idle. Native SwiftUI, runs silently in menu bar.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🔐</div>
                         <h3>Password Manager Aware</h3>
-                        <p>Automatically ignores 1Password, Bitwarden, and other password managers.</p>
+                        <p>Detects both Concealed and Transient clipboard flags. Auto-skips 1Password, Bitwarden.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">📌</div>
-                        <h3>Pin Important Clips</h3>
-                        <p>Pin frequently used snippets. They survive cleanup and stay at the top.</p>
+                        <h3>Pin & Filter by App</h3>
+                        <p>Pin important clips. Export only from specific apps. Organize your workflow.</p>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Comparison Section -->
+        <section class="stats" style="flex-direction: column; gap: 40px;">
+            <h2 class="section-title">How We Compare</h2>
+            <div style="overflow-x: auto; width: 100%; max-width: 900px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <th style="padding: 12px; text-align: left; color: var(--text-secondary);">Feature</th>
+                            <th style="padding: 12px; text-align: center; color: var(--accent);">ClipStash</th>
+                            <th style="padding: 12px; text-align: center; color: var(--text-secondary);">Maccy</th>
+                            <th style="padding: 12px; text-align: center; color: var(--text-secondary);">CopyQ</th>
+                            <th style="padding: 12px; text-align: center; color: var(--text-secondary);">PasteBar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 12px;">NotebookLM Export</td>
+                            <td style="padding: 12px; text-align: center; color: var(--accent);">✅ Unique</td>
+                            <td style="padding: 12px; text-align: center;">❌</td>
+                            <td style="padding: 12px; text-align: center;">❌</td>
+                            <td style="padding: 12px; text-align: center;">❌</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 12px;">Zero Network (Verifiable)</td>
+                            <td style="padding: 12px; text-align: center; color: var(--accent);">✅ Sandboxed</td>
+                            <td style="padding: 12px; text-align: center;">✅</td>
+                            <td style="padding: 12px; text-align: center;">❌</td>
+                            <td style="padding: 12px; text-align: center;">✅</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 12px;">FTS5 Search</td>
+                            <td style="padding: 12px; text-align: center; color: var(--accent);">✅</td>
+                            <td style="padding: 12px; text-align: center;">✅</td>
+                            <td style="padding: 12px; text-align: center;">Fuzzy</td>
+                            <td style="padding: 12px; text-align: center;">Basic</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 12px;">App-Filtered Export</td>
+                            <td style="padding: 12px; text-align: center; color: var(--accent);">✅</td>
+                            <td style="padding: 12px; text-align: center;">❌</td>
+                            <td style="padding: 12px; text-align: center;">Script</td>
+                            <td style="padding: 12px; text-align: center;">Partial</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px;">Native UI</td>
+                            <td style="padding: 12px; text-align: center; color: var(--accent);">SwiftUI</td>
+                            <td style="padding: 12px; text-align: center;">AppKit</td>
+                            <td style="padding: 12px; text-align: center;">Qt</td>
+                            <td style="padding: 12px; text-align: center;">Tauri</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 

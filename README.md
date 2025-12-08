@@ -14,20 +14,50 @@
   <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-14%2B-brightgreen" alt="macOS 14+"></a>
 </p>
 
+<p align="center">
+  <a href="https://kiku-jw.github.io/ClipStash">Website</a> •
+  <a href="https://github.com/kiku-jw/ClipStash/wiki">Documentation</a> •
+  <a href="https://github.com/kiku-jw/ClipStash/releases/latest/download/ClipStash.app.zip">Download</a>
+</p>
+
 ---
 
-## Features
+## Why ClipStash?
 
-- **Always Running**: Menu bar app, captures clipboard in background
-- **Privacy First**: Fully offline, no network access, no telemetry
-- **Fast Search**: SQLite FTS5 full-text search
-- **Low Resource**: < 60 MB RAM, < 0.5% CPU idle
-- **Export**: NotebookLM-friendly Markdown export with auto-split
+ClipStash is an **open-source clipboard manager** for macOS that prioritizes **privacy** and **performance**. Unlike alternatives that require internet access or heavy frameworks, ClipStash runs completely offline with zero telemetry.
 
-## Requirements
+### ✨ Key Features
 
-- macOS 14.0 (Sonoma) or later
-- Xcode 15+ for building
+| Feature | Description |
+|---------|-------------|
+| 🔒 **Zero Network Access** | Sandbox enforced — literally cannot connect to internet |
+| ⚡ **Lightning Search** | SQLite FTS5 full-text search across thousands of items |
+| 📤 **NotebookLM Export** | Auto-split Markdown files for AI notebooks (unique!) |
+| 🔐 **Password-Aware** | Auto-skips 1Password, Bitwarden, and other managers |
+| 🪶 **Ultralight** | <60MB RAM, <0.5% CPU idle, native SwiftUI |
+| 📌 **Pin & Organize** | Pin frequently used clips, filter by source app |
+| 🖼️ **Image Support** | Capture and preview images in clipboard history |
+
+---
+
+## Comparison with Alternatives
+
+| Feature | ClipStash | Maccy | CopyQ | PasteBar | Ditto |
+|---------|:---------:|:-----:|:-----:|:--------:|:-----:|
+| **Platform** | macOS | macOS | Cross | Mac/Win | Windows |
+| **Open Source** | ✅ MIT | ✅ MIT | ✅ GPL | ✅ Apache | ✅ GPL |
+| **Zero Network** | ✅ Sandboxed | ✅ | ❌ | ✅ | ✅ |
+| **FTS5 Search** | ✅ | ✅ | ❌ | ❌ | Regex |
+| **NotebookLM Export** | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ |
+| **Password Detection** | ✅ Both flags | ✅ | Script | ❌ | ❌ |
+| **App Filter Export** | ✅ | ❌ | ❌ | Partial | ❌ |
+| **Native UI** | ✅ SwiftUI | ✅ AppKit | Qt | Tauri | Win32 |
+| **RAM Usage** | ~50MB | ~40MB | ~100MB | ~150MB | ~30MB |
+| **Price** | Free | Free | Free | Free | Free |
+
+> **Bottom line:** ClipStash is the only clipboard manager with NotebookLM-optimized export and verifiable zero-network privacy (sandbox enforced, open source).
+
+---
 
 ## Installation
 
@@ -55,26 +85,30 @@ open ClipStash.xcodeproj
 
 > Note: Launch at login requires the app to be in `/Applications` (macOS restriction).
 
+---
+
 ## Usage
 
-### Basic
+### Keyboard Shortcuts
 
-- Click menu bar icon to open history
-- `↑/↓` — Navigate items
-- `Enter` — Copy to clipboard
-- `⌘F` — Focus search
-- `⌘⌫` — Delete item
-- `⌘P` — Pin/unpin item
+| Action | Shortcut |
+|--------|----------|
+| Open history | Click menu bar icon |
+| Navigate | `↑` / `↓` |
+| Copy to clipboard | `Enter` |
+| Focus search | `⌘F` |
+| Delete item | `⌘⌫` |
+| Pin/unpin | `⌘P` |
+| View full content | Double-click |
 
 ### Export to NotebookLM
 
-1. Click "Export..." in popover
-2. Select items: Last 50/100/200/500 or Pinned only
+1. Click **Export...** in popover
+2. Select scope: Last 50/100/200/500, Today, Pinned, or by App
 3. Choose format: Markdown (recommended)
-4. Click Export
-5. Use "Open NotebookLM" to upload files
+4. Click **Export Now**
 
-Large exports auto-split into ~180KB files for NotebookLM compatibility.
+Large exports auto-split into **~180KB files** for NotebookLM's source limit.
 
 ## Settings
 
