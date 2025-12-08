@@ -31,7 +31,15 @@
 
 ## Installation
 
-### From Source
+### Download Release
+
+[⬇️ **Download ClipStash.app.zip**](https://github.com/kiku-jw/ClipStash/releases/latest/download/ClipStash.app.zip)
+
+1. Download and unzip
+2. Move `ClipStash.app` to `/Applications`
+3. Right-click → Open (first time only, to bypass Gatekeeper)
+
+### Build from Source
 
 ```bash
 git clone https://github.com/kiku-jw/ClipStash.git
