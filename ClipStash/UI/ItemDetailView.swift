@@ -61,7 +61,7 @@ struct ItemDetailView: View {
             }
             .padding()
         }
-        .frame(width: 500, height: 400)
+        .frame(minWidth: 400, minHeight: 300)
         .onAppear {
             loadImage()
         }
