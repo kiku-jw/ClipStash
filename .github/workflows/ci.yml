@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-14
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_15.2.app
+    
+    - name: Build
+      run: |
+        xcodebuild build \
+          -project ClipStash.xcodeproj \
+          -scheme ClipStash \
+          -destination 'platform=macOS' \
+          -configuration Debug \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+    
+    - name: Run Tests
+      run: |
+        xcodebuild test \
+          -project ClipStash.xcodeproj \
+          -scheme ClipStash \
+          -destination 'platform=macOS' \
+          -configuration Debug \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
