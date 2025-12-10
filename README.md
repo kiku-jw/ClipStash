@@ -179,6 +179,15 @@ A: `~/Library/Application Support/ClipStash/clipstash.db`
 **Q: How to fully uninstall?**
 A: Delete app + `rm -rf ~/Library/Application\ Support/ClipStash`
 
+## Documentation
+
+- [Getting Started](https://github.com/kiku-jw/ClipStash/wiki/Getting-Started) — Installation & first steps
+- [Configuration](https://github.com/kiku-jw/ClipStash/wiki/Configuration) — All settings explained
+- [Privacy & Security](https://github.com/kiku-jw/ClipStash/wiki/Privacy-and-Security) — How data stays private
+- [FAQ](https://github.com/kiku-jw/ClipStash/wiki/FAQ) — Common questions
+- [Troubleshooting](https://github.com/kiku-jw/ClipStash/wiki/Troubleshooting) — Fix common issues
+- [Comparison](https://github.com/kiku-jw/ClipStash/wiki/Comparison) — vs Maccy, CopyQ, PasteBar
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
