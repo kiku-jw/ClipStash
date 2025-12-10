@@ -9,15 +9,18 @@
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/app/clipstash-pro/id6756281955"><img src="https://img.shields.io/badge/App_Store-0D96F6?style=flat&logo=app-store&logoColor=white" alt="App Store"></a>
+  <a href="https://www.producthunt.com/products/clipstash-macos-privacyfirst-clipboard"><img src="https://img.shields.io/badge/Product_Hunt-DA552F?style=flat&logo=producthunt&logoColor=white" alt="Product Hunt"></a>
   <a href="https://github.com/kiku-jw/ClipStash/actions"><img src="https://github.com/kiku-jw/ClipStash/actions/workflows/ci.yml/badge.svg" alt="Build"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-14%2B-brightgreen" alt="macOS 14+"></a>
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/app/clipstash-pro/id6756281955">App Store</a> •
   <a href="https://kiku-jw.github.io/ClipStash">Website</a> •
   <a href="https://github.com/kiku-jw/ClipStash/wiki">Documentation</a> •
-  <a href="https://github.com/kiku-jw/ClipStash/releases/latest/download/ClipStash.app.zip">Download</a>
+  <a href="https://github.com/kiku-jw/ClipStash/releases/latest/download/ClipStash.app.zip">Direct Download</a>
 </p>
 
 ---
@@ -61,7 +64,11 @@ ClipStash is an **open-source clipboard manager** for macOS that prioritizes **p
 
 ## Installation
 
-### Download Release
+### App Store (Recommended)
+
+[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/app/clipstash-pro/id6756281955)
+
+### Direct Download
 
 [⬇️ **Download ClipStash.app.zip**](https://github.com/kiku-jw/ClipStash/releases/latest/download/ClipStash.app.zip)
 
@@ -69,7 +76,7 @@ ClipStash is an **open-source clipboard manager** for macOS that prioritizes **p
 2. Run in Terminal: `xattr -cr ~/Downloads/ClipStash.app`
 3. Move `ClipStash.app` to `/Applications` and launch
 
-> **Why xattr?** macOS blocks apps not signed with Apple Developer ID ($99/year). This command removes the quarantine flag. ClipStash is open-source — [verify the code](https://github.com/kiku-jw/ClipStash).
+> **Why xattr?** macOS blocks apps not signed with Apple Developer ID. This command removes the quarantine flag. ClipStash is open-source — [verify the code](https://github.com/kiku-jw/ClipStash).
 
 ### Build from Source
 
