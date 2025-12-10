@@ -24,14 +24,14 @@ final class AppSettings: ObservableObject {
     
     // MARK: - Settings
     
-    /// Maximum number of items to keep in history (100-2000)
+    /// Maximum number of items to keep in history (100-50000)
     @AppStorage(Keys.historyLimit) var historyLimit: Int = 500
     
-    /// Maximum text size in bytes (10KB - 1MB)
-    @AppStorage(Keys.textMaxBytes) var textMaxBytes: Int = 200_000
+    /// Maximum text size in bytes (10KB - 10MB)
+    @AppStorage(Keys.textMaxBytes) var textMaxBytes: Int = 500_000
     
-    /// Maximum image size in bytes (1MB - 20MB)
-    @AppStorage(Keys.imageMaxBytes) var imageMaxBytes: Int = 5_000_000
+    /// Maximum image size in bytes (1MB - 50MB)
+    @AppStorage(Keys.imageMaxBytes) var imageMaxBytes: Int = 10_000_000
     
     /// Enable deduplication (skip identical content)
     @AppStorage(Keys.dedupEnabled) var dedupEnabled: Bool = true
@@ -89,17 +89,17 @@ final class AppSettings: ObservableObject {
     
     /// Clamp historyLimit to valid range
     func validateHistoryLimit() {
-        historyLimit = max(100, min(2000, historyLimit))
+        historyLimit = max(100, min(50_000, historyLimit))
     }
     
     /// Clamp textMaxBytes to valid range
     func validateTextMaxBytes() {
-        textMaxBytes = max(10_000, min(1_000_000, textMaxBytes))
+        textMaxBytes = max(10_000, min(10_000_000, textMaxBytes))
     }
     
     /// Clamp imageMaxBytes to valid range
     func validateImageMaxBytes() {
-        imageMaxBytes = max(1_000_000, min(20_000_000, imageMaxBytes))
+        imageMaxBytes = max(1_000_000, min(50_000_000, imageMaxBytes))
     }
     
     // MARK: - Ignore List Helpers
