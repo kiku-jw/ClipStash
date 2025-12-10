@@ -117,7 +117,7 @@ open ClipStash.xcodeproj
 3. Choose format: Markdown (recommended)
 4. Click **Export Now**
 
-Large exports auto-split into **~180KB files** for NotebookLM's source limit.
+Large exports auto-split at **~400K words** (within NotebookLM's 500K word limit).
 
 ## Settings
 

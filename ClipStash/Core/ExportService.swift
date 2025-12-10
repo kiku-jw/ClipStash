@@ -5,8 +5,8 @@ import AppKit
 actor ExportService {
     static let shared = ExportService()
     
-    /// Target chunk size in bytes (~180KB for NotebookLM compatibility)
-    private let targetChunkBytes = 180_000
+    /// Target chunk size in words (~400K words, within NotebookLM's 500K word limit)
+    private let targetChunkWords = 400_000
     
     // MARK: - Export Options
     
@@ -112,13 +112,13 @@ actor ExportService {
     ) async throws -> [URL] {
         var files: [URL] = []
         var currentContent = ""
-        var currentBytes = 0
+        var currentWords = 0
         var partNumber = 1
         
         // Generate header
         let header = generateHeader(format: format)
         currentContent = header
-        currentBytes = header.utf8.count
+        currentWords = countWords(header)
         
         // Copy images if needed
         var imageCopyDir: URL?
@@ -129,30 +129,36 @@ actor ExportService {
         
         for item in items {
             let entry = try await generateEntry(item, format: format, includeImageRefs: includeImageRefs, imageCopyDir: imageCopyDir)
-            let entryBytes = entry.utf8.count
+            let entryWords = countWords(entry)
             
-            // Check if we need to split
-            if currentBytes + entryBytes > targetChunkBytes && currentBytes > header.utf8.count {
+            // Check if we need to split (at 400K words, within NotebookLM's 500K limit)
+            if currentWords + entryWords > targetChunkWords && currentWords > countWords(header) {
                 // Write current file
                 let file = try writeFile(currentContent, part: partNumber, format: format, destinationDir: destinationDir)
                 files.append(file)
                 
                 partNumber += 1
                 currentContent = header
-                currentBytes = header.utf8.count
+                currentWords = countWords(header)
             }
             
             currentContent += entry
-            currentBytes += entryBytes
+            currentWords += entryWords
         }
         
         // Write final file
-        if currentBytes > header.utf8.count {
+        if currentWords > countWords(header) {
             let file = try writeFile(currentContent, part: files.isEmpty ? nil : partNumber, format: format, destinationDir: destinationDir)
             files.append(file)
         }
         
         return files
+    }
+    
+    /// Count words in a string (for NotebookLM word limit compliance)
+    private func countWords(_ text: String) -> Int {
+        let components = text.components(separatedBy: .whitespacesAndNewlines)
+        return components.filter { !$0.isEmpty }.count
     }
     
     // MARK: - Content Generation

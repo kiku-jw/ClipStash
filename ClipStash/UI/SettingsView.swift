@@ -574,7 +574,7 @@ struct SettingsView: View {
                     .disabled(isExporting || (exportScope == .fromApps && selectedApps.isEmpty))
                     
                     // Info about NotebookLM
-                    Text("Auto-splits into ~180KB files for NotebookLM")
+                    Text("Auto-splits at ~400K words (NotebookLM limit: 500K)")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }

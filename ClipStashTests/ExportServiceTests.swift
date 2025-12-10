@@ -82,7 +82,7 @@ final class ExportServiceTests: XCTestCase {
         try await StorageManager.shared.clearAll(keepPinned: false)
         
         // Insert items with large content to trigger splitting
-        // Target is ~180KB, so insert enough to exceed that
+        // Target is ~400K words, so insert enough to exceed that
         let largeText = String(repeating: "A", count: 50_000) // 50KB per item
         
         for i in 0..<5 {
