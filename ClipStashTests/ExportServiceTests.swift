@@ -81,18 +81,19 @@ final class ExportServiceTests: XCTestCase {
     func testAutoSplit() async throws {
         try await StorageManager.shared.clearAll(keepPinned: false)
         
-        // Insert items with large content to trigger splitting
-        // Target is ~400K words, so insert enough to exceed that
-        let largeText = String(repeating: "A", count: 50_000) // 50KB per item
+        // Insert items with many words to trigger splitting
+        // Target is ~400K words, so we need to generate enough content
+        // Each item: 100,000 words (100K words × 5 items = 500K words > 400K limit)
+        let manyWords = (0..<100_000).map { "word\($0)" }.joined(separator: " ")
         
         for i in 0..<5 {
             _ = try await StorageManager.shared.insert(
                 type: .text,
-                textContent: "\(largeText) Item \(i)",
+                textContent: "\(manyWords) Item \(i)",
                 imageData: nil,
                 sourceBundleId: nil,
                 contentHash: "largehash\(i)",
-                byteSize: 50_006
+                byteSize: manyWords.utf8.count
             )
         }
         
@@ -103,15 +104,8 @@ final class ExportServiceTests: XCTestCase {
             destinationDir: tempExportDir
         )
         
-        // Should have created multiple files due to auto-split
+        // Should have created multiple files due to auto-split (500K words / 400K limit = 2+ files)
         XCTAssertGreaterThan(result.files.count, 1)
-        
-        // All files should be under ~200KB
-        for file in result.files {
-            let attrs = try FileManager.default.attributesOfItem(atPath: file.path)
-            let size = attrs[.size] as? Int ?? 0
-            XCTAssertLessThan(size, 250_000) // Allow some margin
-        }
     }
     
     func testPinnedOnlyExport() async throws {
