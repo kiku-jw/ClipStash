@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: macos-14
+    timeout-minutes: 20  # Limit execution time to reduce costs
     
     steps:
     - uses: actions/checkout@v4

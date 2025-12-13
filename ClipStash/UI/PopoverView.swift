@@ -94,11 +94,11 @@ struct PopoverView: View {
             Task { await viewModel.deleteSelected() }
             return .handled
         }
-        .confirmationDialog("Clear History", isPresented: $showClearConfirmation) {
+        .alert("Clear History", isPresented: $showClearConfirmation) {
             Button("Clear All", role: .destructive) {
                 Task { await viewModel.clearHistory(keepPinned: false) }
             }
-            Button("Keep Pinned Items") {
+            Button("Keep Pinned") {
                 Task { await viewModel.clearHistory(keepPinned: true) }
             }
             Button("Cancel", role: .cancel) {}

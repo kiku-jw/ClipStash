@@ -1,24 +1,27 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  # Only run on PRs to avoid costs on every push to main
   pull_request:
     branches: [main]
+    paths:
+      - 'ClipStash/**'
+      - 'ClipStashTests/**'
+      - 'ClipStash.xcodeproj/**'
+      - '.github/workflows/ci.yml'
+  # Manual trigger for main branch if needed
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-14
+    timeout-minutes: 15  # Limit execution time to reduce costs
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Show available Xcode versions
-      run: ls -la /Applications/ | grep Xcode
-    
     - name: Select Xcode
       run: |
-        # Use latest available Xcode on the runner
         XCODE_PATH=$(ls -d /Applications/Xcode*.app | tail -1)
         sudo xcode-select -s "$XCODE_PATH"
         xcodebuild -version
