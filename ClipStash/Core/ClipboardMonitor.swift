@@ -104,7 +104,7 @@ final class ClipboardMonitor: ObservableObject {
         guard byteSize <= settings.textMaxBytes else { return }
         
         // Compute hash for deduplication
-        let hash = computeHash(type: "text", data: Data(content.utf8))
+        let hash = await computeHash(type: "text", data: Data(content.utf8))
         
         // Check deduplication
         if settings.dedupEnabled {
@@ -141,7 +141,7 @@ final class ClipboardMonitor: ObservableObject {
         guard byteSize <= settings.imageMaxBytes else { return }
         
         // Compute hash for deduplication
-        let hash = computeHash(type: "image", data: imageData)
+        let hash = await computeHash(type: "image", data: imageData)
         
         // Check deduplication
         if settings.dedupEnabled {
@@ -204,11 +204,13 @@ final class ClipboardMonitor: ObservableObject {
         return nil
     }
     
-    private func computeHash(type: String, data: Data) -> String {
-        var hasher = SHA256()
-        hasher.update(data: Data(type.utf8))
-        hasher.update(data: data)
-        let digest = hasher.finalize()
-        return digest.map { String(format: "%02x", $0) }.joined()
+    private func computeHash(type: String, data: Data) async -> String {
+        return await Task.detached(priority: .userInitiated) {
+            var hasher = SHA256()
+            hasher.update(data: Data(type.utf8))
+            hasher.update(data: data)
+            let digest = hasher.finalize()
+            return digest.map { String(format: "%02x", $0) }.joined()
+        }.value
     }
 }
