@@ -14,7 +14,7 @@ actor StorageManager {
     
     // MARK: - Schema Version
     
-    private let currentSchemaVersion = 1
+    private let currentSchemaVersion = 2
     
     // MARK: - Initialization
     
@@ -68,8 +68,10 @@ actor StorageManager {
             try setSchemaVersion(1)
         }
         
-        // Future migrations go here:
-        // if version < 2 { ... }
+        if version < 2 {
+            try execute("CREATE INDEX IF NOT EXISTS idx_items_sourceBundleId ON items(sourceBundleId)")
+            try setSchemaVersion(2)
+        }
     }
     
     private func getSchemaVersion() throws -> Int {
@@ -109,6 +111,7 @@ actor StorageManager {
         try execute("CREATE INDEX IF NOT EXISTS idx_items_createdAt ON items(createdAt DESC)")
         try execute("CREATE INDEX IF NOT EXISTS idx_items_contentHash ON items(contentHash)")
         try execute("CREATE INDEX IF NOT EXISTS idx_items_pinned ON items(pinned)")
+        try execute("CREATE INDEX IF NOT EXISTS idx_items_sourceBundleId ON items(sourceBundleId)")
         
         // FTS5 if available
         if fts5Available {
