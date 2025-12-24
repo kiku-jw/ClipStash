@@ -293,25 +293,59 @@ actor StorageManager {
     func delete(id: Int64) throws {
         // First get the image path if any
         let item = try fetchItem(id: id)
-        
-        // Delete from database
-        try execute("DELETE FROM items WHERE id = \(id)")
-        
+
+        // Delete from database using prepared statement
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+
+        let sql = "DELETE FROM items WHERE id = ?"
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) != SQLITE_OK {
+            throw StorageError.prepareFailed(errorMessage)
+        }
+        sqlite3_bind_int64(stmt, 1, id)
+
+        if sqlite3_step(stmt) != SQLITE_DONE {
+            throw StorageError.executeFailed(errorMessage)
+        }
+
         // Delete image file if exists
         if let imagePath = item?.imagePath {
             let fileURL = imagesPath.appendingPathComponent(imagePath)
             try? FileManager.default.removeItem(at: fileURL)
         }
     }
-    
+
     /// Toggle pinned status
     func togglePinned(id: Int64) throws {
-        try execute("UPDATE items SET pinned = NOT pinned WHERE id = \(id)")
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+
+        let sql = "UPDATE items SET pinned = NOT pinned WHERE id = ?"
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) != SQLITE_OK {
+            throw StorageError.prepareFailed(errorMessage)
+        }
+        sqlite3_bind_int64(stmt, 1, id)
+
+        if sqlite3_step(stmt) != SQLITE_DONE {
+            throw StorageError.executeFailed(errorMessage)
+        }
     }
-    
+
     /// Set pinned status
     func setPinned(id: Int64, pinned: Bool) throws {
-        try execute("UPDATE items SET pinned = \(pinned ? 1 : 0) WHERE id = \(id)")
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+
+        let sql = "UPDATE items SET pinned = ? WHERE id = ?"
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) != SQLITE_OK {
+            throw StorageError.prepareFailed(errorMessage)
+        }
+        sqlite3_bind_int(stmt, 1, pinned ? 1 : 0)
+        sqlite3_bind_int64(stmt, 2, id)
+
+        if sqlite3_step(stmt) != SQLITE_DONE {
+            throw StorageError.executeFailed(errorMessage)
+        }
     }
     
     /// Fetch single item by ID
@@ -392,11 +426,26 @@ actor StorageManager {
                 }
             }
             
-            // Delete items
+            // Delete items using prepared statement
             if !ids.isEmpty {
-                let idList = ids.map { String($0) }.joined(separator: ",")
-                try execute("DELETE FROM items WHERE id IN (\(idList))")
-                
+                let placeholders = ids.map { _ in "?" }.joined(separator: ",")
+                let deleteSql = "DELETE FROM items WHERE id IN (\(placeholders))"
+
+                var deleteStmt: OpaquePointer?
+                defer { sqlite3_finalize(deleteStmt) }
+
+                if sqlite3_prepare_v2(db, deleteSql, -1, &deleteStmt, nil) != SQLITE_OK {
+                    throw StorageError.prepareFailed(errorMessage)
+                }
+
+                for (index, id) in ids.enumerated() {
+                    sqlite3_bind_int64(deleteStmt, Int32(index + 1), id)
+                }
+
+                if sqlite3_step(deleteStmt) != SQLITE_DONE {
+                    throw StorageError.executeFailed(errorMessage)
+                }
+
                 // Delete image files
                 for path in imagePaths {
                     let fileURL = imagesPath.appendingPathComponent(path)
@@ -499,27 +548,27 @@ actor StorageManager {
     /// Fetch items from specific apps for export
     func fetchForExport(bundleIds: [String]) throws -> [ClipItem] {
         guard !bundleIds.isEmpty else { return [] }
-        
+
         let placeholders = bundleIds.map { _ in "?" }.joined(separator: ", ")
         let sql = """
-            SELECT id, content, type, sourceBundleId, imagePath, hash, createdAt, pinned
+            SELECT id, createdAt, type, textContent, imagePath, sourceBundleId, contentHash, pinned, protected, byteSize
             FROM items
             WHERE sourceBundleId IN (\(placeholders))
             ORDER BY createdAt DESC
             """
-        
+
         var stmt: OpaquePointer?
         defer { sqlite3_finalize(stmt) }
-        
+
         if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) != SQLITE_OK {
             throw StorageError.prepareFailed(errorMessage)
         }
-        
+
         // Bind bundle IDs
         for (index, bundleId) in bundleIds.enumerated() {
-            sqlite3_bind_text(stmt, Int32(index + 1), bundleId, -1, nil)
+            sqlite3_bind_text(stmt, Int32(index + 1), bundleId, -1, SQLITE_TRANSIENT)
         }
-        
+
         return try fetchRows(stmt)
     }
     

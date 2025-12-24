@@ -12,7 +12,7 @@
   <a href="https://apps.apple.com/app/clipstash-pro/id6756281955"><img src="https://img.shields.io/badge/App_Store-0D96F6?style=flat&logo=app-store&logoColor=white" alt="App Store"></a>
   <a href="https://www.producthunt.com/products/clipstash-macos-privacyfirst-clipboard"><img src="https://img.shields.io/badge/Product_Hunt-DA552F?style=flat&logo=producthunt&logoColor=white" alt="Product Hunt"></a>
   <a href="https://github.com/kiku-jw/ClipStash/actions"><img src="https://github.com/kiku-jw/ClipStash/actions/workflows/ci.yml/badge.svg" alt="Build"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: AGPL-3.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0"></a>
   <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-14%2B-brightgreen" alt="macOS 14+"></a>
 </p>
 
@@ -48,7 +48,7 @@ ClipStash is an **open-source clipboard manager** for macOS that prioritizes **p
 | Feature | ClipStash | Maccy | CopyQ | PasteBar | Ditto |
 |---------|:---------:|:-----:|:-----:|:--------:|:-----:|
 | **Platform** | macOS | macOS | Cross | Mac/Win | Windows |
-| **Open Source** | ✅ MIT | ✅ MIT | ✅ GPL | ✅ Apache | ✅ GPL |
+| **Open Source** | ✅ AGPL | ✅ MIT | ✅ GPL | ✅ Apache | ✅ GPL |
 | **Zero Network** | ✅ Sandboxed | ✅ | ❌ | ✅ | ✅ |
 | **FTS5 Search** | ✅ | ✅ | ❌ | ❌ | Regex |
 | **NotebookLM Export** | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ |
@@ -123,10 +123,10 @@ Large exports auto-split at **~400K words** (within NotebookLM's 500K word limit
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| History Limit | 500 | Max items to keep (100-2000) |
-| Text Max Size | 200 KB | Skip text larger than this |
-| Image Max Size | 5 MB | Skip images larger than this |
-| Save Images | Off | Also capture images |
+| History Limit | 500 | Max items to keep (100-50000) |
+| Text Max Size | 500 KB | Skip text larger than this |
+| Image Max Size | 10 MB | Skip images larger than this |
+| Save Images | On | Also capture images |
 | Deduplication | On | Skip duplicate content |
 | Byte Preserve | Off | Keep exact whitespace |
 
