@@ -213,7 +213,7 @@ struct SettingsView: View {
                                     .foregroundColor(.blue)
                                 Text("Text")
                                 Spacer()
-                                Text(formatBytes(settings.textMaxBytes))
+                                Text(Formatters.formatBytes(settings.textMaxBytes))
                                     .font(.headline)
                                     .foregroundColor(.blue)
                             }
@@ -232,7 +232,7 @@ struct SettingsView: View {
                                     .foregroundColor(.purple)
                                 Text("Image")
                                 Spacer()
-                                Text(formatBytes(settings.imageMaxBytes))
+                                Text(Formatters.formatBytes(settings.imageMaxBytes))
                                     .font(.headline)
                                     .foregroundColor(.purple)
                             }
@@ -625,8 +625,8 @@ struct SettingsView: View {
                         if let diag = diagnostics {
                             StatusRow(icon: "doc.on.doc", label: "Total Items", value: "\(diag.itemCount)")
                             StatusRow(icon: "pin", label: "Pinned", value: "\(diag.pinnedCount)")
-                            StatusRow(icon: "externaldrive", label: "Database", value: formatBytes(Int(diag.dbSize)))
-                            StatusRow(icon: "photo.stack", label: "Images", value: formatBytes(Int(diag.imagesSize)))
+                            StatusRow(icon: "externaldrive", label: "Database", value: Formatters.formatBytes(Int(diag.dbSize)))
+                            StatusRow(icon: "photo.stack", label: "Images", value: Formatters.formatBytes(Int(diag.imagesSize)))
                         } else {
                             ProgressView()
                                 .frame(maxWidth: .infinity, alignment: .center)
@@ -710,15 +710,6 @@ struct SettingsView: View {
         }
     }
     
-    private func formatBytes(_ bytes: Int) -> String {
-        if bytes < 1024 {
-            return "\(bytes) B"
-        } else if bytes < 1024 * 1024 {
-            return String(format: "%.1f KB", Double(bytes) / 1024)
-        } else {
-            return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
-        }
-    }
 }
 
 // MARK: - Status Row Component

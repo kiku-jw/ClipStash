@@ -176,17 +176,21 @@ final class ClipboardMonitor: ObservableObject {
     
     private func isSensitiveContent(_ pasteboard: NSPasteboard) -> Bool {
         let types = pasteboard.types ?? []
-        
-        // Check for concealed content (password managers)
-        if types.contains(NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")) {
-            return true
+
+        // Check for concealed content (password managers) if setting enabled
+        if settings.ignoreConcealed {
+            if types.contains(NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")) {
+                return true
+            }
         }
-        
-        // Check for transient content
-        if types.contains(NSPasteboard.PasteboardType("org.nspasteboard.TransientType")) {
-            return true
+
+        // Check for transient content if setting enabled
+        if settings.ignoreTransient {
+            if types.contains(NSPasteboard.PasteboardType("org.nspasteboard.TransientType")) {
+                return true
+            }
         }
-        
+
         return false
     }
     
