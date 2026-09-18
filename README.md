@@ -5,103 +5,86 @@
 <h1 align="center">ClipStash</h1>
 
 <p align="center">
-  <strong>🗒️ Lightweight, privacy-first clipboard history manager for macOS</strong>
+  <strong>Local-first clipboard history manager for macOS</strong>
 </p>
 
 <p align="center">
   <a href="https://apps.apple.com/app/clipstash-pro/id6756281955"><img src="https://img.shields.io/badge/App_Store-0D96F6?style=flat&logo=app-store&logoColor=white" alt="App Store"></a>
-  <a href="https://www.producthunt.com/products/clipstash-macos-privacyfirst-clipboard"><img src="https://img.shields.io/badge/Product_Hunt-DA552F?style=flat&logo=producthunt&logoColor=white" alt="Product Hunt"></a>
-  <a href="https://github.com/KikuAI-Lab/ClipStash/actions"><img src="https://github.com/KikuAI-Lab/ClipStash/actions/workflows/ci.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/kiku-jw/ClipStash/actions"><img src="https://github.com/kiku-jw/ClipStash/actions/workflows/ci.yml/badge.svg" alt="Build"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0"></a>
   <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-14%2B-brightgreen" alt="macOS 14+"></a>
 </p>
 
-<p align="center">
-  <a href="https://apps.apple.com/app/clipstash-pro/id6756281955">App Store</a> •
-  <a href="https://kikuai-lab.github.io/ClipStash">Website</a> •
-  <a href="https://github.com/KikuAI-Lab/ClipStash/wiki">Documentation</a> •
-  <a href="https://github.com/KikuAI-Lab/ClipStash/releases/latest/download/ClipStash.app.zip">Direct Download</a>
-</p>
+Search copied text, keep useful snippets, and export selected clipboard history
+as Markdown or plain text. ClipStash uses native SwiftUI and local SQLite
+storage rather than an account-based clipboard service.
 
----
+**[App Store listing](https://apps.apple.com/app/clipstash-pro/id6756281955)** ·
+[GitHub releases](https://github.com/kiku-jw/ClipStash/releases) ·
+[Build from source](#build-from-source) · [Privacy and limitations](#privacy-and-limitations)
 
-## Why ClipStash?
+## What it does
 
-ClipStash is an **open-source clipboard manager** for macOS that prioritizes **privacy** and **performance**. Unlike alternatives that require internet access or heavy frameworks, ClipStash runs completely offline with zero telemetry.
+| Capability | Scope |
+| --- | --- |
+| Clipboard history | Text and supported images, with configurable size and history limits |
+| Search | SQLite-backed history with FTS5 support |
+| Pin and organize | Keep frequently used clips and filter by source app |
+| Export | Markdown or plain-text files from recent, pinned, selected, or app-filtered history |
+| Sensitive-item controls | Respect concealed/transient pasteboard flags when enabled; exclude configured app bundle IDs |
+| Duplicate handling | Optional content-hash deduplication and whitespace-preservation setting |
 
-### ✨ Key Features
-
-| Feature | Description |
-|---------|-------------|
-| 🔒 **Zero Network Access** | Sandbox enforced — literally cannot connect to internet |
-| ⚡ **Lightning Search** | SQLite FTS5 full-text search across thousands of items |
-| 📤 **NotebookLM Export** | Auto-split Markdown files for AI notebooks (unique!) |
-| 🔐 **Password-Aware** | Auto-skips 1Password, Bitwarden, and other managers |
-| 🪶 **Ultralight** | <60MB RAM, <0.5% CPU idle, native SwiftUI |
-| 📌 **Pin & Organize** | Pin frequently used clips, filter by source app |
-| 🖼️ **Image Support** | Capture and preview images in clipboard history |
-
----
-
-## Comparison with Alternatives
-
-| Feature | ClipStash | Maccy | CopyQ | PasteBar | Ditto |
-|---------|:---------:|:-----:|:-----:|:--------:|:-----:|
-| **Platform** | macOS | macOS | Cross | Mac/Win | Windows |
-| **Open Source** | ✅ AGPL | ✅ MIT | ✅ GPL | ✅ Apache | ✅ GPL |
-| **Zero Network** | ✅ Sandboxed | ✅ | ❌ | ✅ | ✅ |
-| **FTS5 Search** | ✅ | ✅ | ❌ | ❌ | Regex |
-| **NotebookLM Export** | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ |
-| **Password Detection** | ✅ Both flags | ✅ | Script | ❌ | ❌ |
-| **App Filter Export** | ✅ | ❌ | ❌ | Partial | ❌ |
-| **Native UI** | ✅ SwiftUI | ✅ AppKit | Qt | Tauri | Win32 |
-| **RAM Usage** | ~50MB | ~40MB | ~100MB | ~150MB | ~30MB |
-| **Price** | Free | Free | Free | Free | Free |
-
-> **Bottom line:** ClipStash is the only clipboard manager with NotebookLM-optimized export and verifiable zero-network privacy (sandbox enforced, open source).
-
----
+ClipStash is a clipboard utility, not a password manager or a guarantee that
+all sensitive material will be detected. No reproducible cross-application
+benchmark is included here, so this README does not claim a fixed memory/CPU
+budget, unique market position, or superiority over other clipboard managers.
 
 ## Installation
 
-### App Store (Recommended)
+### App Store
 
-[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/app/clipstash-pro/id6756281955)
+Open the [App Store listing](https://apps.apple.com/app/clipstash-pro/id6756281955)
+to check the version, availability, and requirements for your storefront.
 
-### Direct Download
+### GitHub releases
 
-[⬇️ **Download ClipStash.app.zip**](https://github.com/KikuAI-Lab/ClipStash/releases/latest/download/ClipStash.app.zip)
+Use the [release page](https://github.com/kiku-jw/ClipStash/releases) to inspect
+the tag, release notes, and attached archive before downloading. A historical
+archive is not necessarily the same code as the current default branch or the
+App Store build.
 
-1. Download and unzip
-2. Run in Terminal: `xattr -cr ~/Downloads/ClipStash.app`
-3. Move `ClipStash.app` to `/Applications` and launch
+Check the origin and signing information of the exact app you install. Do not
+automatically clear quarantine attributes or disable macOS security checks to
+open an unverified archive. Use the App Store route or build the source you
+have reviewed when an archive's provenance is unclear.
 
-> **Why xattr?** macOS blocks apps not signed with Apple Developer ID. This command removes the quarantine flag. ClipStash is open-source — [verify the code](https://github.com/KikuAI-Lab/ClipStash).
+### Build from source
 
-### Build from Source
+The project declares macOS 14.0 or later. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the development setup.
 
 ```bash
-git clone https://github.com/KikuAI-Lab/ClipStash.git
+git clone https://github.com/kiku-jw/ClipStash.git
 cd ClipStash
 open ClipStash.xcodeproj
-# Build with ⌘B, Run with ⌘R
 ```
 
-### Launch at Login
+Select the ClipStash scheme in Xcode, build with `⌘B`, and run with `⌘R`.
 
-1. Move `ClipStash.app` to `/Applications`
-2. Open Settings → Enable "Launch at Login"
+### Launch at login
 
-> Note: Launch at login requires the app to be in `/Applications` (macOS restriction).
-
----
+Move the app to `/Applications`, then enable **Launch at Login** in Settings.
 
 ## Usage
 
-### Keyboard Shortcuts
+Copy a non-sensitive test sentence, open the menu-bar history, search for it,
+and copy it back. Review the history and ignore-list settings before using the
+app with work or personal material.
+
+### Keyboard shortcuts
 
 | Action | Shortcut |
-|--------|----------|
+| --- | --- |
 | Open history | Click menu bar icon |
 | Navigate | `↑` / `↓` |
 | Copy to clipboard | `Enter` |
@@ -110,87 +93,89 @@ open ClipStash.xcodeproj
 | Pin/unpin | `⌘P` |
 | View full content | Double-click |
 
-### Export to NotebookLM
+### Export for notes or an AI notebook
 
-1. Click **Export...** in popover
-2. Select scope: Last 50/100/200/500, Today, Pinned, or by App
-3. Choose format: Markdown (recommended)
-4. Click **Export Now**
+1. Click **Export...** in the popover.
+2. Choose the history scope and Markdown or plain-text format.
+3. Export, then inspect the files before sharing them with another service.
 
-Large exports auto-split at **~400K words** (within NotebookLM's 500K word limit).
+The current exporter targets approximately 400,000 words per chunk. This is a
+local implementation setting, not a guarantee that a third-party service will
+accept every exported file. Check that service's current limits yourself.
+ClipStash writes the export locally; uploading it to NotebookLM or any other
+service is a separate action with that service's own privacy terms.
 
 ## Settings
 
+These defaults are defined in
+[`AppSettings`](ClipStash/Core/Models/Settings.swift).
+
 | Setting | Default | Description |
-|---------|---------|-------------|
-| History Limit | 500 | Max items to keep (100-50000) |
-| Text Max Size | 500 KB | Skip text larger than this |
-| Image Max Size | 10 MB | Skip images larger than this |
-| Save Images | On | Also capture images |
+| --- | --- | --- |
+| History limit | 500 | Maximum items; configurable from 100 to 50,000 |
+| Text max size | 500,000 bytes | Skip larger text items |
+| Image max size | 10,000,000 bytes | Skip larger images |
+| Save images | On | Capture supported clipboard images |
 | Deduplication | On | Skip duplicate content |
-| Byte Preserve | Off | Keep exact whitespace |
+| Byte preserve | Off | Keep whitespace instead of trimming text |
+| Ignore concealed items | On | Respect `org.nspasteboard.ConcealedType` |
+| Ignore transient items | On | Respect `org.nspasteboard.TransientType` |
 
-### Ignore List
+Add app bundle IDs to the ignore list, for example
+`com.1password.1password`. The check uses the frontmost app's bundle ID;
+it is not a universal detector of which application originally created data.
 
-Add app bundle IDs to exclude from capture (e.g., `com.1password.1password`).
+## Privacy and limitations
 
-## Privacy
+The clipboard monitor, storage, and exporter implement a local workflow.
+However, **local-first is not a claim that every distributed build has a
+verified network-denying sandbox**. Inspect the configuration and entitlements
+of the exact signed binary before relying on that property. This README does
+not attest to an App Store or GitHub archive's runtime behavior.
 
-- **No Network**: App never makes network requests (sandbox enforced)
-- **No Telemetry**: Zero analytics or tracking
-- **Local Storage**: All data in `~/Library/Application Support/ClipStash`
-- **Sensitive Content**: Automatically skips concealed/transient clipboard items
-- **Optional Encryption**: Pin items and encrypt with AES-GCM
+Sensitive-item skipping depends on the corresponding settings and on the
+source application marking the pasteboard. Unmarked passwords, tokens, private
+messages, and other confidential text can still enter history. Review history,
+configure exclusions, and avoid copying secrets while recording.
 
-### Sensitive Content Detection
+The current storage code places `clipstash.db` and its `images` directory in a
+`ClipStash` subdirectory of the app's Application Support directory. Its full
+path can differ by build and sandbox container. Local storage and exported
+files should be treated as sensitive; do not attach real clipboard databases,
+exports, screenshots, or secrets to public issues.
 
-ClipStash respects macOS clipboard indicators:
-- `org.nspasteboard.ConcealedType` — password managers
-- `org.nspasteboard.TransientType` — temporary data
+### Removing local data
 
-## Architecture
+Quit ClipStash and export anything you intend to keep first. Remove the app
+and, only after locating and checking its actual data directory, delete the
+associated clipboard data. Deleting the database or images is destructive;
+removing the app alone should not be assumed to erase all saved data or exports.
 
-```
-ClipStash/
-├── App/           # Entry point, AppDelegate
-├── Core/          # Business logic
-│   ├── ClipboardMonitor.swift
-│   ├── StorageManager.swift
-│   └── ExportService.swift
-├── UI/            # SwiftUI views
-└── Utils/         # Helpers
-```
+## Source and verification
 
-### Why Polling?
+| Area | Source |
+| --- | --- |
+| Pasteboard polling, size checks, sensitive flags, app exclusions | [`ClipboardMonitor.swift`](ClipStash/Core/ClipboardMonitor.swift) |
+| SQLite database and storage location | [`StorageManager.swift`](ClipStash/Core/StorageManager.swift) |
+| Export scopes, formats, and chunk target | [`ExportService.swift`](ClipStash/Core/ExportService.swift) |
+| Settings and defaults | [`Settings.swift`](ClipStash/Core/Models/Settings.swift) |
+| Build configuration | [`project.pbxproj`](ClipStash.xcodeproj/project.pbxproj) |
+| Build and test commands | [CI workflow](.github/workflows/ci.yml) |
 
-macOS doesn't provide clipboard change notifications. We poll `NSPasteboard.changeCount` every 300ms with debounce — same approach used by established clipboard managers. This uses negligible CPU.
+The monitor checks `NSPasteboard.changeCount` on a 0.3-second timer and applies
+a separate debounce. These are implementation details, not a performance
+benchmark. Source checks and CI builds do not replace testing an installed,
+signed distribution artifact.
 
-## FAQ
+## Documentation and contributing
 
-**Q: Why not use NSPasteboard notifications?**
-A: macOS doesn't provide them. Polling is the only reliable method.
+[Project wiki](https://github.com/kiku-jw/ClipStash/wiki) ·
+[Contributing](CONTRIBUTING.md) ·
+[Code of conduct](CODE_OF_CONDUCT.md) ·
+[Report a reproducible issue](https://github.com/kiku-jw/ClipStash/issues)
 
-**Q: How do I exclude an app?**
-A: Settings → Ignore List → Add bundle ID (e.g., `com.apple.keychainaccess`).
-
-**Q: Where is data stored?**
-A: `~/Library/Application Support/ClipStash/clipstash.db`
-
-**Q: How to fully uninstall?**
-A: Delete app + `rm -rf ~/Library/Application\ Support/ClipStash`
-
-## Documentation
-
-- [Getting Started](https://github.com/KikuAI-Lab/ClipStash/wiki/Getting-Started) — Installation & first steps
-- [Configuration](https://github.com/KikuAI-Lab/ClipStash/wiki/Configuration) — All settings explained
-- [Privacy & Security](https://github.com/KikuAI-Lab/ClipStash/wiki/Privacy-and-Security) — How data stays private
-- [FAQ](https://github.com/KikuAI-Lab/ClipStash/wiki/FAQ) — Common questions
-- [Troubleshooting](https://github.com/KikuAI-Lab/ClipStash/wiki/Troubleshooting) — Fix common issues
-- [Comparison](https://github.com/KikuAI-Lab/ClipStash/wiki/Comparison) — vs Maccy, CopyQ, PasteBar
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+Use synthetic text when reporting clipboard problems. Include the app version,
+macOS version, and minimal reproduction steps, without private clipboard data.
 
 ## Follow the work
 
@@ -200,7 +185,8 @@ Project notes and new tools: [Telegram](https://t.me/kiku_ai) ·
 
 ## License
 
-AGPL-3.0. Copyright (c) 2025 KikuAI Lab
+The current checkout uses [AGPL-3.0](LICENSE). Check the license accompanying the
+particular source revision or release you use.
 
 <!-- author-links:start -->
 <p align="center">
