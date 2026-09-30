@@ -3,7 +3,13 @@ import AppKit
 
 /// Service for exporting clipboard history to files
 actor ExportService {
-    static let shared = ExportService()
+    static let shared = ExportService(storage: .shared)
+
+    private let storage: StorageManager
+
+    init(storage: StorageManager) {
+        self.storage = storage
+    }
     
     /// Target chunk size in words (~400K words, within NotebookLM's 500K word limit)
     private let targetChunkWords = 400_000
@@ -81,24 +87,24 @@ actor ExportService {
     private func fetchItems(for scope: ExportScope) async throws -> [ClipItem] {
         switch scope {
         case .lastN(let n):
-            return try await StorageManager.shared.fetchForExport(lastN: n)
+            return try await storage.fetchForExport(lastN: n)
             
         case .today:
             let startOfDay = Calendar.current.startOfDay(for: Date())
-            return try await StorageManager.shared.fetchForExport(since: startOfDay)
+            return try await storage.fetchForExport(since: startOfDay)
             
         case .lastWeek:
             let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
-            return try await StorageManager.shared.fetchForExport(since: weekAgo)
+            return try await storage.fetchForExport(since: weekAgo)
             
         case .pinnedOnly:
-            return try await StorageManager.shared.fetchForExport(pinnedOnly: true)
+            return try await storage.fetchForExport(pinnedOnly: true)
             
         case .selected(let ids):
-            return try await StorageManager.shared.fetchForExport(ids: ids)
+            return try await storage.fetchForExport(ids: ids)
             
         case .fromApps(let bundleIds):
-            return try await StorageManager.shared.fetchForExport(bundleIds: bundleIds)
+            return try await storage.fetchForExport(bundleIds: bundleIds)
         }
     }
     
@@ -203,7 +209,7 @@ actor ExportService {
         case .image:
             if includeImageRefs, let imagePath = item.imagePath, let imageCopyDir = imageCopyDir {
                 // Copy image to export directory
-                let sourceURL = await StorageManager.shared.imageURL(for: imagePath)
+                let sourceURL = await storage.imageURL(for: imagePath)
                 let destFilename = generateImageFilename(from: item.createdAt, originalPath: imagePath)
                 let destURL = imageCopyDir.appendingPathComponent(destFilename)
                 
