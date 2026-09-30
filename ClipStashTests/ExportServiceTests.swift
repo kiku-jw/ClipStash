@@ -77,7 +77,49 @@ final class ExportServiceTests: XCTestCase {
         let content = try String(contentsOf: file, encoding: .utf8)
         XCTAssertTrue(content.contains("Plain text export"))
     }
-    
+
+    func testRepeatedExportsKeepExistingParentFile() async throws {
+        try await StorageManager.shared.clearAll(keepPinned: false)
+
+        _ = try await StorageManager.shared.insert(
+            type: .text,
+            textContent: "Repeated export content",
+            imageData: nil,
+            sourceBundleId: nil,
+            contentHash: "repeated-export-hash",
+            byteSize: 24
+        )
+
+        // This represents an unrelated export already present in the folder
+        // selected by the user. Each new export is given its own child folder
+        // by the UI, so this file must remain byte-for-byte unchanged.
+        let existingParentFile = tempExportDir.appendingPathComponent("export.md")
+        let existingContent = "Keep this existing export.\n"
+        try existingContent.write(to: existingParentFile, atomically: true, encoding: .utf8)
+
+        for _ in 1...2 {
+            let destinationDir = await MainActor.run {
+                ExportDestinationPicker.uniqueExportDirectory(inside: tempExportDir)
+            }
+            let result = try await ExportService.shared.export(
+                scope: .lastN(10),
+                format: .markdown,
+                includeImageRefs: false,
+                destinationDir: destinationDir
+            )
+
+            XCTAssertEqual(result.files.count, 1)
+            XCTAssertTrue(destinationDir.lastPathComponent.hasPrefix("ClipStash_Export_"))
+            XCTAssertTrue(result.files.allSatisfy {
+                $0.deletingLastPathComponent().standardizedFileURL == destinationDir.standardizedFileURL
+            })
+            XCTAssertEqual(
+                try String(contentsOf: existingParentFile, encoding: .utf8),
+                existingContent
+            )
+        }
+    }
+
     func testAutoSplit() async throws {
         try await StorageManager.shared.clearAll(keepPinned: false)
         

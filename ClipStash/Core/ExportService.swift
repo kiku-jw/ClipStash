@@ -43,7 +43,7 @@ actor ExportService {
         scope: ExportScope,
         format: ExportFormat,
         includeImageRefs: Bool = false,
-        destinationDir: URL? = nil
+        destinationDir: URL
     ) async throws -> ExportResult {
         // Fetch items based on scope
         let items = try await fetchItems(for: scope)
@@ -52,16 +52,16 @@ actor ExportService {
             throw ExportError.noItemsToExport
         }
         
-        // Determine destination directory
-        let destDir = destinationDir ?? getDefaultExportDirectory()
-        try FileManager.default.createDirectory(at: destDir, withIntermediateDirectories: true)
+        // The caller must provide a user-selected destination. This keeps all
+        // writes inside the directory approved by the sandbox security scope.
+        try FileManager.default.createDirectory(at: destinationDir, withIntermediateDirectories: true)
         
         // Generate content and split if needed
         let files = try await generateFiles(
             items: items,
             format: format,
             includeImageRefs: includeImageRefs,
-            destinationDir: destDir
+            destinationDir: destinationDir
         )
         
         let totalBytes: Int = files.reduce(0) { (sum: Int, url: URL) -> Int in
@@ -265,15 +265,7 @@ actor ExportService {
     }
     
     // MARK: - Helpers
-    
-    private func getDefaultExportDirectory() -> URL {
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let timestamp = dateFormatter.string(from: Date())
-        return downloads.appendingPathComponent("ClipStash_Export_\(timestamp)", isDirectory: true)
-    }
-    
+
     // MARK: - Actions
     
     @MainActor

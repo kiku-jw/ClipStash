@@ -203,12 +203,29 @@ struct ExportSheet: View {
     private func performExport() async {
         isExporting = true
         error = nil
+
+        guard let selectedDirectory = ExportDestinationPicker.chooseDirectory() else {
+            isExporting = false
+            return
+        }
+        // Keep each export isolated so a prior export in the selected parent
+        // cannot be overwritten. The parent is the user-approved scope; the
+        // child directory is created by ExportService only after items exist.
+        let destinationDir = ExportDestinationPicker.uniqueExportDirectory(inside: selectedDirectory)
+
+        let hasScopedAccess = selectedDirectory.startAccessingSecurityScopedResource()
+        defer {
+            if hasScopedAccess {
+                selectedDirectory.stopAccessingSecurityScopedResource()
+            }
+        }
         
         do {
             result = try await ExportService.shared.export(
                 scope: scope.scope,
                 format: format.format,
-                includeImageRefs: includeImages
+                includeImageRefs: includeImages,
+                destinationDir: destinationDir
             )
         } catch {
             self.error = error.localizedDescription
