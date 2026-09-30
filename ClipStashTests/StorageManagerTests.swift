@@ -162,7 +162,26 @@ final class StorageManagerTests: XCTestCase {
         XCTAssertEqual(results2.count, 1)
         XCTAssertEqual(results2.first?.textContent, "Lazy dog sleeps")
     }
-    
+
+    func testSearchWithEmbeddedQuote() async throws {
+        try await storage.open()
+        try await storage.clearAll(keepPinned: false)
+
+        _ = try await storage.insert(
+            type: .text,
+            textContent: "A fox\" text",
+            imageData: nil,
+            sourceBundleId: nil,
+            contentHash: "quotedsearchhash",
+            byteSize: 12
+        )
+
+        // A quote in the query used to produce an unterminated FTS5 phrase.
+        let results = try await storage.search(query: "fox\"", limit: 10, offset: 0)
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results.first?.textContent, "A fox\" text")
+    }
+
     func testPaging() async throws {
         try await storage.open()
         

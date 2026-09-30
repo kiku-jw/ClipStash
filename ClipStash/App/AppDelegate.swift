@@ -5,8 +5,13 @@ import ServiceManagement
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     let viewModel = ClipboardViewModel()
+    private let isRunningUnitTests = NSClassFromString("XCTestCase") != nil
+        || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // A hosted unit test must not monitor the clipboard, open the user's
+        // database, or change login-item registration.
+        guard !isRunningUnitTests else { return }
         // Initialize storage
         Task {
             do {
@@ -24,6 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
+        guard !isRunningUnitTests else { return }
         ClipboardMonitor.shared.stop()
         
         Task {

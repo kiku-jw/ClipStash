@@ -288,8 +288,11 @@ actor StorageManager {
             throw StorageError.prepareFailed(errorMessage)
         }
         
-        // For FTS5, wrap in quotes for phrase matching
-        let searchTerm = fts5Available ? "\"\(query)\"" : query
+        // For FTS5, wrap in quotes for phrase matching. Escape embedded quotes
+        // first so a search such as `fox"` cannot produce an unterminated FTS
+        // phrase and fail the history search.
+        let escapedQuery = query.replacingOccurrences(of: "\"", with: "\"\"")
+        let searchTerm = fts5Available ? "\"\(escapedQuery)\"" : query
         sqlite3_bind_text(stmt, 1, searchTerm, -1, SQLITE_TRANSIENT)
         sqlite3_bind_int(stmt, 2, Int32(limit))
         sqlite3_bind_int(stmt, 3, Int32(offset))
