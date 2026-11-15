@@ -74,6 +74,40 @@ final class StorageManagerTests: XCTestCase {
         let notExists = try await storage.exists(contentHash: "nonexistent")
         XCTAssertFalse(notExists)
     }
+
+    func testTextUTF8BytesIncludingNULSurviveFetchExportAndReopen() async throws {
+        let seedID = try await storage.insert(type: .text, textContent: "Existing pinned history",
+            imageData: nil, sourceBundleId: "test.seed", contentHash: "seed", byteSize: 23)
+        try await storage.setPinned(id: seedID, pinned: true)
+        let seed = try await storage.fetchItem(id: seedID)
+        let samples = ["before\u{0000}after 🙂\r\n", "\u{0000}leading", "trailing\u{0000}", "", "e\u{0301}\n"]
+        var ids: [Int64] = []
+        for (index, text) in samples.enumerated() {
+            let id = try await storage.insert(type: .text, textContent: text, imageData: nil,
+                sourceBundleId: "test.source", contentHash: "bytes-\(index)", byteSize: text.utf8.count)
+            ids.append(id)
+        }
+
+        // A new actor exercises the disk path; existing rows must remain exact.
+        await storage.close()
+        storage = StorageManager(baseDirectory: tempDBPath)
+        try await storage.open()
+        let reloadedSeed = try await storage.fetchItem(id: seedID)
+        XCTAssertEqual(reloadedSeed, seed)
+        let items = try await storage.fetchItems(limit: 100, offset: 0)
+        let exported = try await storage.fetchForExport(ids: ids)
+        XCTAssertEqual(items.count, samples.count + 1)
+        XCTAssertEqual(exported.count, samples.count)
+        for (index, pair) in zip(ids, samples).enumerated() {
+            let (id, text) = pair
+            let fetched = try await storage.fetchItem(id: id)
+            for item in [fetched, items.first { $0.id == id }, exported.first { $0.id == id }] {
+                XCTAssertEqual(item?.textContent.map { Data($0.utf8) }, Data(text.utf8))
+                XCTAssertEqual(item?.byteSize, text.utf8.count)
+                XCTAssertEqual(item?.contentHash, "bytes-\(index)")
+            }
+        }
+    }
     
     func testEviction() async throws {
         try await storage.open()

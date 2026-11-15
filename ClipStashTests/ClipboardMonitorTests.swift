@@ -256,6 +256,41 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
         }
     }
 
+    func testObservedExcludedForegroundOverridesStaleAllowedSampleAndRecovers() async throws {
+        try await withFixture { storage, _ in
+            let board = Pasteboard(), clock = Clock()
+            let monitor = ClipboardMonitor(pasteboard: board, settings: Settings(), storage: storage,
+                now: { clock.date }, sourceBundleId: { "test.allowed" }, workspaceNotifications: NotificationCenter())
+            monitor.start()
+            defer { monitor.stop() }
+            let generation = monitor.monitoringGeneration
+            // Real activation callbacks use the event's incoming identity because
+            // the sampled frontmost app can still name the outgoing allowed app.
+            monitor.handleApplicationActivation(bundleId: "test.ignored", generation: generation)
+            board.copy("New excluded copy after activation fence")
+            await monitor.checkPasteboard()
+            let excludedCount = try await storage.count()
+            try expect(excludedCount == 0, "Observed excluded foreground must override a stale allowed source sample")
+
+            monitor.handleApplicationActivation(bundleId: "test.allowed", generation: generation)
+            board.copy("Allowed recovery A")
+            await monitor.checkPasteboard()
+            clock.date.addTimeInterval(0.2)
+            board.copy("Allowed recovery B pending debounce")
+            await monitor.checkPasteboard()
+            let beforeDebounce = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(beforeDebounce.count == 1 && beforeDebounce[0].textContent == "Allowed recovery A",
+                "Allowed rapid recovery must remain pending during debounce")
+            clock.date.addTimeInterval(0.4)
+            await monitor.checkPasteboard()
+            clock.date.addTimeInterval(1)
+            await monitor.checkPasteboard()
+            let items = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(items.count == 2 && Set(items.compactMap(\.textContent)) == ["Allowed recovery A", "Allowed recovery B pending debounce"],
+                "After leaving excluded foreground, allowed copies must recover exactly once")
+        }
+    }
+
     func testStoppedGenerationCannotPollOrConsumeAfterRestart() async throws {
         try await withFixture { storage, _ in
             let board = Pasteboard(), clock = Clock()

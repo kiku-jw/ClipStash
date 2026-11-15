@@ -157,7 +157,10 @@ final class ClipboardMonitor: ObservableObject {
         // Excluded changes must be consumed immediately: a later focus change
         // must not make an ignored application's deferred copy eligible.
         let sourceBundleId = sourceBundleId()
-        if isSensitiveContent(pasteboard) || settings.isIgnored(bundleId: sourceBundleId) {
+        // The activation event can precede frontmostApplication catching up.
+        // Keep the observed exclusion in force for new changes during that gap.
+        if isSensitiveContent(pasteboard) || settings.isIgnored(bundleId: sourceBundleId)
+            || settings.isIgnored(bundleId: foregroundBundleId) {
             lastChangeCount = currentChangeCount
             return
         }
