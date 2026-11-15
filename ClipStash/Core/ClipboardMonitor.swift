@@ -172,15 +172,19 @@ final class ClipboardMonitor: ObservableObject {
         isProcessing = true
         defer { isProcessing = false }
         let epoch = captureEpoch
-        await processPasteboard(sourceBundleId: sourceBundleId, epoch: epoch)
+        await processPasteboard(sourceBundleId: sourceBundleId, epoch: epoch, changeCount: currentChangeCount)
         if epoch == captureEpoch { lastWriteTime = now() }
     }
 
     // MARK: - Processing
     
-    private func processPasteboard(sourceBundleId: String?, epoch: UInt64) async {
+    private func processPasteboard(sourceBundleId: String?, epoch: UInt64, changeCount: Int) async {
         // Try to get text content
         if let text = pasteboard.string(forType: .string) {
+            // Pasteboard reads can cross an external replacement or reveal new
+            // sensitive types. Never apply the earlier policy to that snapshot.
+            guard pasteboard.changeCount == changeCount, !isSensitiveContent(pasteboard),
+                  pasteboard.changeCount == changeCount else { return }
             await processText(text, sourceBundleId: sourceBundleId, epoch: epoch)
             return
         }
@@ -188,6 +192,8 @@ final class ClipboardMonitor: ObservableObject {
         // Try to get image content (if enabled)
         if settings.saveImages {
             if let imageData = getImageData(from: pasteboard) {
+                guard pasteboard.changeCount == changeCount, !isSensitiveContent(pasteboard),
+                      pasteboard.changeCount == changeCount else { return }
                 await processImage(imageData, sourceBundleId: sourceBundleId, epoch: epoch)
             }
         }

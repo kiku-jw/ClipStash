@@ -324,6 +324,67 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
         }
     }
 
+    func testChangedOrConcealedSnapshotDuringReadIsRejectedAndFixtureSurvives() async throws {
+        try await withFixture { storage, directory in
+            let seedText = "Preserved seed 🙂\r\n"
+            let seedID = try await storage.insert(type: .text, textContent: seedText,
+                imageData: nil, sourceBundleId: "test.seed", contentHash: "snapshot-seed", byteSize: seedText.utf8.count)
+            try await storage.setPinned(id: seedID, pinned: true)
+            let seed = try await storage.fetchItem(id: seedID)
+            let board = Pasteboard(), clock = Clock()
+            var settings = Settings()
+            settings.bytePreserveMode = true
+            let monitor = ClipboardMonitor(pasteboard: board, settings: settings, storage: storage,
+                now: { clock.date }, sourceBundleId: { "test.allowed" })
+
+            // Change the board at the existing read seam, after policy sampling.
+            // No foreground transition/epoch change can mask the snapshot race.
+            for replacement in ["changed", "concealed"] {
+                clock.date.addTimeInterval(1)
+                board.copy("Allowed snapshot before read")
+                board.onRead = {
+                    board.onRead = nil
+                    if replacement == "changed" {
+                        board.copy("Replacement during read")
+                    } else {
+                        board.types?.append(NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+                        board.text = "Concealed during read"
+                    }
+                }
+                await monitor.checkPasteboard()
+                let items = try await storage.fetchItems(limit: 100, offset: 0)
+                try expect(items.count == 1 && items[0] == seed,
+                    "A changed or newly concealed snapshot must not be saved under the earlier allowed policy")
+                // The next poll must consume a sensitive replacement, not revive it.
+                if replacement == "changed" {
+                    board.types?.append(NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+                }
+                clock.date.addTimeInterval(1)
+                await monitor.checkPasteboard()
+            }
+
+            let recovery = "Allowed after rejected read\u{0000} 🙂\r\n"
+            board.copy(recovery)
+            clock.date.addTimeInterval(1)
+            await monitor.checkPasteboard()
+            await storage.close()
+            let reopened = StorageManager(baseDirectory: directory)
+            do {
+                try await reopened.open()
+                let items = try await reopened.fetchItems(limit: 100, offset: 0)
+                let reloadedSeed = try await reopened.fetchItem(id: seedID)
+                try expect(items.count == 2 && reloadedSeed == seed, "Rejected read must preserve the existing pinned fixture")
+                let actual = items.first { $0.id != seedID }
+                try expect(actual?.textContent.map { Data($0.utf8) } == Data(recovery.utf8),
+                    "The next allowed copy must recover with exact bytes after reopen")
+                await reopened.close()
+            } catch {
+                await reopened.close()
+                throw error
+            }
+        }
+    }
+
     func testForegroundBoundaryInvalidatesCapturePreparation() async throws {
         try await withFixture { storage, _ in
             let board = Pasteboard(), clock = Clock()
