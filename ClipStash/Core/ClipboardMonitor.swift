@@ -1,6 +1,31 @@
 import Foundation
 import AppKit
 import CryptoKit
+import Combine
+
+/// Read-only pasteboard surface, allowing polling without the system clipboard in tests.
+protocol ClipboardPasteboard {
+    var changeCount: Int { get }
+    var types: [NSPasteboard.PasteboardType]? { get }
+    func string(forType dataType: NSPasteboard.PasteboardType) -> String?
+    func data(forType dataType: NSPasteboard.PasteboardType) -> Data?
+}
+
+extension NSPasteboard: ClipboardPasteboard {}
+
+protocol ClipboardCaptureSettings {
+    var bytePreserveMode: Bool { get }
+    var textMaxBytes: Int { get }
+    var imageMaxBytes: Int { get }
+    var dedupEnabled: Bool { get }
+    var historyLimit: Int { get }
+    var saveImages: Bool { get }
+    var ignoreConcealed: Bool { get }
+    var ignoreTransient: Bool { get }
+    func isIgnored(bundleId: String?) -> Bool
+}
+
+extension AppSettings: ClipboardCaptureSettings {}
 
 /// Monitors NSPasteboard for changes and saves to storage
 @MainActor
@@ -15,84 +40,160 @@ final class ClipboardMonitor: ObservableObject {
     private let debounceInterval: TimeInterval = 0.5
     private let pollInterval: TimeInterval = 0.3
     
-    private let settings = AppSettings.shared
+    private let pasteboard: ClipboardPasteboard
+    private let settings: ClipboardCaptureSettings
+    private let storage: StorageManager
+    private let now: () -> Date
+    private let sourceBundleId: () -> String?
+    private var isProcessing = false
+    private let workspaceNotifications: NotificationCenter?
+    private var workspaceObserver: NSObjectProtocol?
+    private var foregroundBundleId: String?
+    private var captureEpoch: UInt64 = 0
+    private(set) var monitoringGeneration: UInt64 = 0
+    var hasWorkspaceObserver: Bool { workspaceObserver != nil }
+
+    private convenience init() {
+        self.init(
+            pasteboard: NSPasteboard.general,
+            settings: AppSettings.shared,
+            storage: StorageManager.shared,
+            now: Date.init,
+            sourceBundleId: { NSWorkspace.shared.frontmostApplication?.bundleIdentifier },
+            workspaceNotifications: NSWorkspace.shared.notificationCenter
+        )
+    }
+
+    init(
+        pasteboard: ClipboardPasteboard,
+        settings: ClipboardCaptureSettings,
+        storage: StorageManager,
+        now: @escaping () -> Date,
+        sourceBundleId: @escaping () -> String?,
+        workspaceNotifications: NotificationCenter? = nil
+    ) {
+        self.pasteboard = pasteboard
+        self.settings = settings
+        self.storage = storage
+        self.now = now
+        self.sourceBundleId = sourceBundleId
+        self.workspaceNotifications = workspaceNotifications
+    }
     
     // MARK: - Lifecycle
     
     func start() {
         guard !isRunning else { return }
-        
-        lastChangeCount = NSPasteboard.general.changeCount
-        
+        monitoringGeneration &+= 1
+        captureEpoch &+= 1
+        let generation = monitoringGeneration
+        foregroundBundleId = sourceBundleId()
+        lastChangeCount = pasteboard.changeCount
+        isRunning = true
+
+        if let center = workspaceNotifications {
+            workspaceObserver = center.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+            ) { [weak self] notification in
+                guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+                // Workspace's event names the incoming app; frontmostApplication
+                // can still be the outgoing app. Main delivery must not Task-hop
+                // behind a timer poll of the same pending pasteboard change.
+                MainActor.assumeIsolated {
+                    self?.handleApplicationActivation(bundleId: app.bundleIdentifier, generation: generation)
+                }
+            }
+        }
         timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                self?.checkPasteboard()
+                await self?.pollIfCurrentGeneration(generation)
             }
         }
-        
-        isRunning = true
     }
-    
+
     func stop() {
+        // Invalidate queued callbacks before unregistering their sources.
+        monitoringGeneration &+= 1
+        captureEpoch &+= 1
+        isRunning = false
         timer?.invalidate()
         timer = nil
-        isRunning = false
+        if let workspaceObserver { workspaceNotifications?.removeObserver(workspaceObserver) }
+        workspaceObserver = nil
+        foregroundBundleId = nil
     }
-    
+
+    deinit {
+        timer?.invalidate()
+        if let workspaceObserver { workspaceNotifications?.removeObserver(workspaceObserver) }
+    }
+
+    /// Shared by the real synchronous workspace callback and deterministic checks.
+    func handleApplicationActivation(bundleId: String?, generation: UInt64) {
+        guard isRunning, generation == monitoringGeneration else { return }
+        let previous = foregroundBundleId
+        foregroundBundleId = bundleId
+        if settings.isIgnored(bundleId: previous) || settings.isIgnored(bundleId: bundleId) {
+            // Conservatively discard pending content at an excluded foreground
+            // boundary. Public pasteboard APIs do not establish writer identity.
+            lastChangeCount = pasteboard.changeCount
+            captureEpoch &+= 1
+        }
+    }
+
+    func pollIfCurrentGeneration(_ generation: UInt64) async {
+        guard isRunning, generation == monitoringGeneration else { return }
+        await checkPasteboard()
+    }
+
     // MARK: - Polling
     
-    private func checkPasteboard() {
-        let currentChangeCount = NSPasteboard.general.changeCount
-        
+    /// One serialized poll; internal so tests can advance a synthetic clock explicitly.
+    func checkPasteboard() async {
+        guard !isProcessing else { return }
+        let currentChangeCount = pasteboard.changeCount
+
         guard currentChangeCount != lastChangeCount else { return }
-        lastChangeCount = currentChangeCount
-        
-        // Debounce: skip if last write was too recent
-        let now = Date()
-        guard now.timeIntervalSince(lastWriteTime) >= debounceInterval else { return }
-        
-        // Process pasteboard
-        Task {
-            await processPasteboard()
-            await MainActor.run {
-                self.lastWriteTime = Date()
-            }
+        // Excluded changes must be consumed immediately: a later focus change
+        // must not make an ignored application's deferred copy eligible.
+        let sourceBundleId = sourceBundleId()
+        // The activation event can precede frontmostApplication catching up.
+        // Keep the observed exclusion in force for new changes during that gap.
+        if isSensitiveContent(pasteboard) || settings.isIgnored(bundleId: sourceBundleId)
+            || settings.isIgnored(bundleId: foregroundBundleId) {
+            lastChangeCount = currentChangeCount
+            return
         }
+
+        // Leave a throttled change pending so the next poll can capture it.
+        guard now().timeIntervalSince(lastWriteTime) >= debounceInterval else { return }
+        lastChangeCount = currentChangeCount
+
+        isProcessing = true
+        defer { isProcessing = false }
+        let epoch = captureEpoch
+        await processPasteboard(sourceBundleId: sourceBundleId, epoch: epoch)
+        if epoch == captureEpoch { lastWriteTime = now() }
     }
-    
+
     // MARK: - Processing
     
-    private func processPasteboard() async {
-        let pasteboard = NSPasteboard.general
-        
-        // Check for sensitive content indicators
-        if isSensitiveContent(pasteboard) {
-            return
-        }
-        
-        // Check ignore list
-        if let frontmostApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-           settings.isIgnored(bundleId: frontmostApp) {
-            return
-        }
-        
-        let sourceBundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        
+    private func processPasteboard(sourceBundleId: String?, epoch: UInt64) async {
         // Try to get text content
         if let text = pasteboard.string(forType: .string) {
-            await processText(text, sourceBundleId: sourceBundleId)
+            await processText(text, sourceBundleId: sourceBundleId, epoch: epoch)
             return
         }
         
         // Try to get image content (if enabled)
         if settings.saveImages {
             if let imageData = getImageData(from: pasteboard) {
-                await processImage(imageData, sourceBundleId: sourceBundleId)
+                await processImage(imageData, sourceBundleId: sourceBundleId, epoch: epoch)
             }
         }
     }
     
-    private func processText(_ text: String, sourceBundleId: String?) async {
+    private func processText(_ text: String, sourceBundleId: String?, epoch: UInt64) async {
         // Apply byte-preserve mode
         let content = settings.bytePreserveMode ? text : text.trimmingCharacters(in: .whitespacesAndNewlines)
         
@@ -105,11 +206,12 @@ final class ClipboardMonitor: ObservableObject {
         
         // Compute hash for deduplication
         let hash = await computeHash(type: "text", data: Data(content.utf8))
+        guard epoch == captureEpoch else { return }
         
         // Check deduplication
         if settings.dedupEnabled {
             do {
-                if try await StorageManager.shared.exists(contentHash: hash) {
+                if try await storage.exists(contentHash: hash) {
                     return
                 }
             } catch {
@@ -117,9 +219,11 @@ final class ClipboardMonitor: ObservableObject {
             }
         }
         
+        // A workspace boundary or Stop can invalidate preparation across awaits.
+        guard epoch == captureEpoch else { return }
         // Insert into storage
         do {
-            _ = try await StorageManager.shared.insert(
+            _ = try await storage.insert(
                 type: .text,
                 textContent: content,
                 imageData: nil,
@@ -129,24 +233,25 @@ final class ClipboardMonitor: ObservableObject {
             )
             
             // Evict if over limit
-            try await StorageManager.shared.evict(limit: settings.historyLimit)
+            try await storage.evict(limit: settings.historyLimit)
         } catch {
             print("ClipboardMonitor: Failed to save text: \(error)")
         }
     }
     
-    private func processImage(_ imageData: Data, sourceBundleId: String?) async {
+    private func processImage(_ imageData: Data, sourceBundleId: String?, epoch: UInt64) async {
         // Check size limit
         let byteSize = imageData.count
         guard byteSize <= settings.imageMaxBytes else { return }
         
         // Compute hash for deduplication
         let hash = await computeHash(type: "image", data: imageData)
+        guard epoch == captureEpoch else { return }
         
         // Check deduplication
         if settings.dedupEnabled {
             do {
-                if try await StorageManager.shared.exists(contentHash: hash) {
+                if try await storage.exists(contentHash: hash) {
                     return
                 }
             } catch {
@@ -154,9 +259,11 @@ final class ClipboardMonitor: ObservableObject {
             }
         }
         
+        // A workspace boundary or Stop can invalidate preparation across awaits.
+        guard epoch == captureEpoch else { return }
         // Insert into storage
         do {
-            _ = try await StorageManager.shared.insert(
+            _ = try await storage.insert(
                 type: .image,
                 textContent: nil,
                 imageData: imageData,
@@ -166,7 +273,7 @@ final class ClipboardMonitor: ObservableObject {
             )
             
             // Evict if over limit
-            try await StorageManager.shared.evict(limit: settings.historyLimit)
+            try await storage.evict(limit: settings.historyLimit)
         } catch {
             print("ClipboardMonitor: Failed to save image: \(error)")
         }
@@ -174,7 +281,7 @@ final class ClipboardMonitor: ObservableObject {
     
     // MARK: - Helpers
     
-    private func isSensitiveContent(_ pasteboard: NSPasteboard) -> Bool {
+    private func isSensitiveContent(_ pasteboard: ClipboardPasteboard) -> Bool {
         let types = pasteboard.types ?? []
 
         // Check for concealed content (password managers) if setting enabled
@@ -194,7 +301,7 @@ final class ClipboardMonitor: ObservableObject {
         return false
     }
     
-    private func getImageData(from pasteboard: NSPasteboard) -> Data? {
+    private func getImageData(from pasteboard: ClipboardPasteboard) -> Data? {
         // Try TIFF first (most common)
         if let data = pasteboard.data(forType: .tiff) {
             return data

@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import AppKit
 
 /// Settings view with detailed, organized tabs
 struct SettingsView: View {
@@ -594,6 +595,22 @@ struct SettingsView: View {
     private func performExport() async {
         isExporting = true
         exportError = nil
+
+        guard let selectedDirectory = ExportDestinationPicker.chooseDirectory() else {
+            isExporting = false
+            return
+        }
+        // Keep each export isolated so a prior export in the selected parent
+        // cannot be overwritten. The parent is the user-approved scope; the
+        // child directory is created by ExportService only after items exist.
+        let destinationDir = ExportDestinationPicker.uniqueExportDirectory(inside: selectedDirectory)
+
+        let hasScopedAccess = selectedDirectory.startAccessingSecurityScopedResource()
+        defer {
+            if hasScopedAccess {
+                selectedDirectory.stopAccessingSecurityScopedResource()
+            }
+        }
         
         do {
             let scope: ExportService.ExportScope
@@ -606,7 +623,8 @@ struct SettingsView: View {
             exportResult = try await ExportService.shared.export(
                 scope: scope,
                 format: exportFormat.format,
-                includeImageRefs: includeImages
+                includeImageRefs: includeImages,
+                destinationDir: destinationDir
             )
         } catch {
             exportError = error.localizedDescription
@@ -710,6 +728,34 @@ struct SettingsView: View {
         }
     }
     
+}
+
+@MainActor
+enum ExportDestinationPicker {
+    static func chooseDirectory() -> URL? {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        panel.message = "Choose where ClipStash will save the export files."
+        panel.prompt = "Choose Export Folder"
+
+        guard panel.runModal() == .OK else {
+            return nil
+        }
+
+        return panel.url
+    }
+
+    static func uniqueExportDirectory(inside parent: URL, date: Date = Date(), id: UUID = UUID()) -> URL {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = formatter.string(from: date)
+        let shortID = String(id.uuidString.prefix(8))
+        return parent.appendingPathComponent("ClipStash_Export_\(timestamp)_\(shortID)", isDirectory: true)
+    }
 }
 
 // MARK: - Status Row Component

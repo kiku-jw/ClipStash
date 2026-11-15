@@ -199,7 +199,14 @@ actor StorageManager {
         sqlite3_bind_text(stmt, 2, type.rawValue, -1, SQLITE_TRANSIENT)
         
         if let text = textContent {
-            sqlite3_bind_text(stmt, 3, text, -1, SQLITE_TRANSIENT)
+            // A negative length stops at an embedded NUL, corrupting otherwise
+            // valid clipboard text while leaving its hash and byteSize intact.
+            let result = text.withCString { bytes in
+                sqlite3_bind_text64(stmt, 3, bytes, UInt64(text.utf8.count), SQLITE_TRANSIENT, UInt8(SQLITE_UTF8))
+            }
+            guard result == SQLITE_OK else {
+                throw StorageError.insertFailed(errorMessage)
+            }
         } else {
             sqlite3_bind_null(stmt, 3)
         }
@@ -288,8 +295,11 @@ actor StorageManager {
             throw StorageError.prepareFailed(errorMessage)
         }
         
-        // For FTS5, wrap in quotes for phrase matching
-        let searchTerm = fts5Available ? "\"\(query)\"" : query
+        // For FTS5, wrap in quotes for phrase matching. Escape embedded quotes
+        // first so a search such as `fox"` cannot produce an unterminated FTS
+        // phrase and fail the history search.
+        let escapedQuery = query.replacingOccurrences(of: "\"", with: "\"\"")
+        let searchTerm = fts5Available ? "\"\(escapedQuery)\"" : query
         sqlite3_bind_text(stmt, 1, searchTerm, -1, SQLITE_TRANSIENT)
         sqlite3_bind_int(stmt, 2, Int32(limit))
         sqlite3_bind_int(stmt, 3, Int32(offset))
@@ -644,7 +654,8 @@ actor StorageManager {
             
             let textContent: String?
             if let text = sqlite3_column_text(stmt, 3) {
-                textContent = String(cString: text)
+                let bytes = UnsafeBufferPointer(start: text, count: Int(sqlite3_column_bytes(stmt, 3)))
+                textContent = String(decoding: bytes, as: UTF8.self)
             } else {
                 textContent = nil
             }
