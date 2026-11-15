@@ -14,6 +14,7 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
         var types: [NSPasteboard.PasteboardType]? = [.string]
         var text: String?
         var image: Data?
+        var onRead: (() -> Void)?
 
         func copy(_ text: String) {
             changeCount += 1
@@ -22,7 +23,9 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
         }
 
         func string(forType dataType: NSPasteboard.PasteboardType) -> String? {
-            dataType == .string ? text : nil
+            guard dataType == .string else { return nil }
+            onRead?()
+            return text
         }
 
         func data(forType dataType: NSPasteboard.PasteboardType) -> Data? {
@@ -214,4 +217,103 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
             try expect(items.count == 1 && items.first?.textContent == "Allowed content", "Allowed copies must still be captured")
         }
     }
+    func testUnpolledExcludedTransitionIsConsumedAndNextAllowedCopySurvives() async throws {
+        try await withFixture { storage, _ in
+            let seedText = "Transition seed 🙂\r\n"
+            let seed = try await storage.insert(type: .text, textContent: seedText,
+                imageData: nil, sourceBundleId: "test.seed", contentHash: "transition-seed", byteSize: seedText.utf8.count)
+            let original = try await storage.fetchItem(id: seed)
+            let board = Pasteboard(), clock = Clock()
+            var source = "test.ignored"
+            let monitor = ClipboardMonitor(pasteboard: board, settings: Settings(), storage: storage,
+                now: { clock.date }, sourceBundleId: { source }, workspaceNotifications: NotificationCenter())
+            monitor.start()
+            defer { monitor.stop() }
+            let generation = monitor.monitoringGeneration
+            board.copy("Excluded text not yet polled")
+            source = "test.allowed"
+            monitor.handleApplicationActivation(bundleId: "test.allowed", generation: generation)
+            clock.date.addTimeInterval(1)
+            await monitor.checkPasteboard()
+            var items = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(items.count == 1, "Leaving excluded app must consume an unpolled copy")
+
+            board.copy("First allowed recovery")
+            await monitor.checkPasteboard()
+            clock.date.addTimeInterval(1)
+            board.copy("Pending text at excluded entry")
+            // Event identity wins even while the sampled source is still allowed.
+            monitor.handleApplicationActivation(bundleId: "test.ignored", generation: generation)
+            monitor.handleApplicationActivation(bundleId: "test.allowed", generation: generation)
+            await monitor.checkPasteboard()
+            board.copy("Next allowed recovery")
+            await monitor.checkPasteboard()
+            items = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(Set(items.compactMap(\.textContent)) == ["Transition seed 🙂\r\n", "First allowed recovery", "Next allowed recovery"],
+                "Both excluded boundaries must stay absent while new allowed copies remain useful")
+            let actualSeed = try await storage.fetchItem(id: seed)
+            try expect(actualSeed == original, "Existing seed and metadata must remain exact")
+        }
+    }
+
+    func testStoppedGenerationCannotPollOrConsumeAfterRestart() async throws {
+        try await withFixture { storage, _ in
+            let board = Pasteboard(), clock = Clock()
+            let monitor = ClipboardMonitor(pasteboard: board, settings: Settings(), storage: storage,
+                now: { clock.date }, sourceBundleId: { "test.allowed" }, workspaceNotifications: NotificationCenter())
+            monitor.start()
+            let old = monitor.monitoringGeneration
+            try expect(monitor.hasWorkspaceObserver, "Start must register the injected private center")
+            monitor.stop()
+            try expect(!monitor.hasWorkspaceObserver, "Stop must remove its workspace observer")
+            board.copy("While stopped")
+            await monitor.pollIfCurrentGeneration(old)
+            monitor.start()
+            let current = monitor.monitoringGeneration
+            defer { monitor.stop() }
+            board.copy("Current generation copy")
+            monitor.handleApplicationActivation(bundleId: "test.ignored", generation: old)
+            await monitor.pollIfCurrentGeneration(old)
+            let beforeCurrent = try await storage.count()
+            try expect(beforeCurrent == 0, "A queued old timer cannot capture after restart")
+            await monitor.pollIfCurrentGeneration(current)
+            var items = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(items.count == 1 && items[0].textContent == "Current generation copy",
+                "Stale workspace callback must not consume current allowed data")
+            monitor.stop()
+            try expect(!monitor.hasWorkspaceObserver, "Repeated lifecycle stop must unregister again")
+            board.copy("After final stop")
+            await monitor.pollIfCurrentGeneration(current)
+            items = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(items.count == 1 && !monitor.isRunning, "A queued timer cannot capture after Stop")
+        }
+    }
+
+    func testForegroundBoundaryInvalidatesCapturePreparation() async throws {
+        try await withFixture { storage, _ in
+            let board = Pasteboard(), clock = Clock()
+            let monitor = ClipboardMonitor(pasteboard: board, settings: Settings(), storage: storage,
+                now: { clock.date }, sourceBundleId: { "test.allowed" }, workspaceNotifications: NotificationCenter())
+            monitor.start()
+            defer { monitor.stop() }
+            let generation = monitor.monitoringGeneration
+            board.copy("Preparation crossing excluded boundary")
+            // Deterministic fixture hook at the existing board read seam; no
+            // production async hook or claim of real OS timing is introduced.
+            board.onRead = {
+                monitor.handleApplicationActivation(bundleId: "test.ignored", generation: generation)
+                monitor.handleApplicationActivation(bundleId: "test.allowed", generation: generation)
+            }
+            await monitor.checkPasteboard()
+            let rejected = try await storage.count()
+            try expect(rejected == 0, "A foreground fence must invalidate unfinished hash/write preparation")
+            board.onRead = nil
+            board.copy("Allowed after invalidated preparation")
+            await monitor.checkPasteboard()
+            let items = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(items.count == 1 && items[0].textContent == "Allowed after invalidated preparation",
+                "Rejected preparation must not consume or throttle the next allowed copy")
+        }
+    }
+
 }
