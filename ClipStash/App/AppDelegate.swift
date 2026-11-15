@@ -5,7 +5,7 @@ import ServiceManagement
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     let viewModel = ClipboardViewModel()
-    private let isRunningUnitTests = NSClassFromString("XCTestCase") != nil
+    let isRunningUnitTests = NSClassFromString("XCTestCase") != nil
         || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     
     func applicationDidFinishLaunching(_ notification: Notification) {

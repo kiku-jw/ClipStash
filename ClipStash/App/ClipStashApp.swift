@@ -6,38 +6,43 @@ struct ClipStashApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
-        MenuBarExtra {
-            VStack(spacing: 0) {
-                PopoverView()
-                    .environmentObject(appDelegate.viewModel)
-                    .environmentObject(AppSettings.shared)
-                
-                Divider()
-                    .padding(.vertical, 4)
-                
-                // Bottom bar - simplified
-                HStack(spacing: 12) {
-                    SettingsLink {
-                        Image(systemName: "gear")
-                            .font(.system(size: 12))
+        MenuBarExtra(isInserted: .constant(!appDelegate.isRunningUnitTests)) {
+            // The test host has no production content or singleton access.
+            if appDelegate.isRunningUnitTests {
+                EmptyView()
+            } else {
+                VStack(spacing: 0) {
+                    PopoverView()
+                        .environmentObject(appDelegate.viewModel)
+                        .environmentObject(AppSettings.shared)
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    // Bottom bar - simplified
+                    HStack(spacing: 12) {
+                        SettingsLink {
+                            Image(systemName: "gear")
+                                .font(.system(size: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Settings (includes About & Export)")
+
+                        Spacer()
+
+                        Button {
+                            NSApplication.shared.terminate(nil)
+                        } label: {
+                            Image(systemName: "power")
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Quit ClipStash")
                     }
-                    .buttonStyle(.plain)
-                    .help("Settings (includes About & Export)")
-                    
-                    Spacer()
-                    
-                    Button {
-                        NSApplication.shared.terminate(nil)
-                    } label: {
-                        Image(systemName: "power")
-                            .font(.system(size: 12))
-                            .foregroundColor(.red)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Quit ClipStash")
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
             }
         } label: {
             Image(systemName: "list.clipboard")
@@ -45,8 +50,12 @@ struct ClipStashApp: App {
         .menuBarExtraStyle(.window)
         
         SwiftUI.Settings {
-            SettingsView()
-                .environmentObject(AppSettings.shared)
+            if appDelegate.isRunningUnitTests {
+                EmptyView()
+            } else {
+                SettingsView()
+                    .environmentObject(AppSettings.shared)
+            }
         }
     }
 }
