@@ -207,13 +207,16 @@ actor ExportService {
             }
             
         case .image:
-            if includeImageRefs, let imagePath = item.imagePath, let imageCopyDir = imageCopyDir {
+            if includeImageRefs, let imageCopyDir = imageCopyDir {
+                guard let imagePath = item.imagePath else {
+                    throw ExportError.writeError("Image \(item.id) has no stored image path")
+                }
                 // Copy image to export directory
                 let sourceURL = await storage.imageURL(for: imagePath)
-                let destFilename = generateImageFilename(from: item.createdAt, originalPath: imagePath)
+                let destFilename = generateImageFilename(from: item.createdAt, itemID: item.id, originalPath: imagePath)
                 let destURL = imageCopyDir.appendingPathComponent(destFilename)
                 
-                try? FileManager.default.copyItem(at: sourceURL, to: destURL)
+                try FileManager.default.copyItem(at: sourceURL, to: destURL)
                 
                 entry += "[Image] images/\(destFilename)\n\n"
             } else {
@@ -241,13 +244,13 @@ actor ExportService {
         return entry
     }
     
-    private func generateImageFilename(from date: Date, originalPath: String) -> String {
+    private func generateImageFilename(from date: Date, itemID: Int64, originalPath: String) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         let timestamp = dateFormatter.string(from: date)
         
         let ext = (originalPath as NSString).pathExtension
-        return "\(timestamp).\(ext.isEmpty ? "png" : ext)"
+        return "\(timestamp)_\(itemID).\(ext.isEmpty ? "png" : ext)"
     }
     
     // MARK: - File Writing
