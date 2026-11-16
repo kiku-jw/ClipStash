@@ -27,38 +27,37 @@
 
 ## Why ClipStash?
 
-ClipStash is an **open-source clipboard manager** for macOS that prioritizes **privacy** and **performance**. Unlike alternatives that require internet access or heavy frameworks, ClipStash runs completely offline with zero telemetry.
+ClipStash is an open-source macOS clipboard history manager with local search,
+pinned items, app filters, and file export. It has no built-in cloud sync. The
+app sandbox entitlements do not enable network client or server access.
 
-### ✨ Key Features
+### Key Features
 
 | Feature | Description |
 |---------|-------------|
-| 🔒 **Zero Network Access** | Sandbox enforced — literally cannot connect to internet |
-| ⚡ **Lightning Search** | SQLite FTS5 full-text search across thousands of items |
-| 📤 **NotebookLM Export** | Auto-split Markdown files for AI notebooks (unique!) |
-| 🔐 **Password-Aware** | Auto-skips 1Password, Bitwarden, and other managers |
-| 🪶 **Ultralight** | <60MB RAM, <0.5% CPU idle, native SwiftUI |
-| 📌 **Pin & Organize** | Pin frequently used clips, filter by source app |
-| 🖼️ **Image Support** | Capture and preview images in clipboard history |
+| **Local History** | Keep and search copied text and images on your Mac |
+| **Markdown Export** | Export selected history to files in a folder you choose |
+| **App Exclusions** | Skip configured applications and recognized sensitive clipboard types |
+| **Pin & Organize** | Pin frequently used clips and filter by source app |
+| **Image Support** | Capture, preview, and optionally export image files with their paths in Markdown |
 
----
+Application attribution follows the observed foreground app. Exclusions and
+sensitive-type checks are safeguards, not a guarantee that every password or
+sensitive copy can be identified. Review stored content and exports before
+sharing them.
 
-## Comparison with Alternatives
+## Choosing a Clipboard Manager
 
-| Feature | ClipStash | Maccy | CopyQ | PasteBar | Ditto |
-|---------|:---------:|:-----:|:-----:|:--------:|:-----:|
-| **Platform** | macOS | macOS | Cross | Mac/Win | Windows |
-| **Open Source** | ✅ AGPL | ✅ MIT | ✅ GPL | ✅ Apache | ✅ GPL |
-| **Zero Network** | ✅ Sandboxed | ✅ | ❌ | ✅ | ✅ |
-| **FTS5 Search** | ✅ | ✅ | ❌ | ❌ | Regex |
-| **NotebookLM Export** | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ |
-| **Password Detection** | ✅ Both flags | ✅ | Script | ❌ | ❌ |
-| **App Filter Export** | ✅ | ❌ | ❌ | Partial | ❌ |
-| **Native UI** | ✅ SwiftUI | ✅ AppKit | Qt | Tauri | Win32 |
-| **RAM Usage** | ~50MB | ~40MB | ~100MB | ~150MB | ~30MB |
-| **Price** | Free | Free | Free | Free | Free |
+[Maccy](https://github.com/p0deje/Maccy),
+[CopyQ](https://hluk.github.io/CopyQ/), and
+[PasteBar](https://github.com/PasteBar/PasteBarApp) are alternatives worth checking
+against your own workflow. Their export formats, licenses, and current prices
+should be checked in their official documentation.
 
-> **Bottom line:** ClipStash is the only clipboard manager with NotebookLM-optimized export and verifiable zero-network privacy (sandbox enforced, open source).
+ClipStash's export produces local Markdown or plain text. With image export
+enabled, it also copies images and lists their relative paths in Markdown. A
+portable folder on disk does not establish that another application will import
+its images or preserve every reference.
 
 ---
 
@@ -110,14 +109,19 @@ open ClipStash.xcodeproj
 | Pin/unpin | `⌘P` |
 | View full content | Double-click |
 
-### Export to NotebookLM
+### Export Files for Later Use
 
 1. Click **Export...** in popover
 2. Select scope: Last 50/100/200/500, Today, Pinned, or by App
 3. Choose format: Markdown (recommended)
 4. Click **Export Now**
 
-Large exports auto-split at **~400K words** (within NotebookLM's 500K word limit).
+Large exports auto-split at a target of **~400K words**. This is ClipStash's
+chunking setting; acceptance by another tool depends on that tool's current
+limits and supported formats. NotebookLM ingestion has not been qualified here.
+Image paths in Markdown refer to local files; images are not automatically uploaded.
+Exported files are not encrypted; review them before sending them to any external
+service.
 
 ## Settings
 
@@ -136,11 +140,11 @@ Add app bundle IDs to exclude from capture (e.g., `com.1password.1password`).
 
 ## Privacy
 
-- **No Network**: App never makes network requests (sandbox enforced)
+- **Network Sandbox**: App entitlements do not enable network client or server access
 - **No Telemetry**: Zero analytics or tracking
 - **Local Storage**: All data in `~/Library/Application Support/ClipStash`
 - **Sensitive Content**: Automatically skips concealed/transient clipboard items
-- **Optional Encryption**: Pin items and encrypt with AES-GCM
+- **Pinning**: Keeps an item available; pinning does not encrypt its content
 
 ### Sensitive Content Detection
 
