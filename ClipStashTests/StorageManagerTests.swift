@@ -1,4 +1,5 @@
 import XCTest
+import SQLite3
 @testable import ClipStash
 
 final class StorageManagerTests: XCTestCase {
@@ -109,6 +110,135 @@ final class StorageManagerTests: XCTestCase {
         }
     }
     
+    // Generated 2x2 PNG; no user clipboard data is used by these fixtures.
+    private var generatedPNG: Data {
+        Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGO4YxQFRAwQCgApdgWhAEbY9wAAAABJRU5ErkJggg==")!
+    }
+
+    private func executeFixtureSQL(_ sql: String) throws {
+        var db: OpaquePointer?
+        let result = sqlite3_open(tempDBPath.appendingPathComponent("clipstash.db").path, &db)
+        defer { sqlite3_close(db) }
+        guard result == SQLITE_OK else { throw StorageError.cannotOpenDatabase("Fixture database") }
+        var message: UnsafeMutablePointer<CChar>?
+        if sqlite3_exec(db, sql, nil, nil, &message) != SQLITE_OK {
+            let detail = message.map { String(cString: $0) } ?? "Fixture SQL failed"
+            sqlite3_free(message)
+            throw StorageError.executeFailed(detail)
+        }
+    }
+
+    private func imageFiles() throws -> Set<URL> {
+        Set(try FileManager.default.contentsOfDirectory(
+            at: tempDBPath.appendingPathComponent("images"), includingPropertiesForKeys: nil))
+    }
+
+    func testFailedImageInsertRemovesOnlyUnreferencedAttemptImage() async throws {
+        let image = generatedPNG
+        let seedID = try await storage.insert(type: .image, textContent: nil, imageData: image,
+            sourceBundleId: "test.seed", contentHash: "seed-image", byteSize: image.count)
+        try await storage.setPinned(id: seedID, pinned: true)
+        let seed = try await storage.fetchItem(id: seedID)
+        let seedURL = await storage.imageURL(for: try XCTUnwrap(seed?.imagePath))
+        let originalFiles = try imageFiles()
+        try executeFixtureSQL("""
+            CREATE TRIGGER fixture_reject_image BEFORE INSERT ON items
+            WHEN NEW.sourceBundleId = 'test.rejected'
+            BEGIN SELECT RAISE(ABORT, 'fixture image rejection'); END;
+            """)
+        do {
+            _ = try await storage.insert(type: .image, textContent: nil, imageData: image,
+                sourceBundleId: "test.rejected", contentHash: "rejected-image", byteSize: image.count)
+            XCTFail("Expected SQLite insertion failure")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "Insert failed: fixture image rejection")
+        }
+        XCTAssertEqual(try imageFiles(), originalFiles)
+        let afterFailure = try await storage.fetchItem(id: seedID)
+        let count = try await storage.count()
+        let rejectedExists = try await storage.exists(contentHash: "rejected-image")
+        XCTAssertEqual(afterFailure, seed)
+        XCTAssertEqual(count, 1)
+        XCTAssertFalse(rejectedExists)
+        XCTAssertEqual(try Data(contentsOf: seedURL), image)
+
+        let successID = try await storage.insert(type: .image, textContent: nil, imageData: image,
+            sourceBundleId: "test.success", contentHash: "success-image", byteSize: image.count)
+        let success = try await storage.fetchItem(id: successID)
+        let successURL = await storage.imageURL(for: try XCTUnwrap(success?.imagePath))
+        await storage.close()
+        storage = StorageManager(baseDirectory: tempDBPath)
+        try await storage.open()
+        let reloaded = try await storage.fetchItem(id: successID)
+        XCTAssertEqual(reloaded, success)
+        XCTAssertEqual(try Data(contentsOf: successURL), image)
+        try await storage.delete(id: successID)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: successURL.path))
+        try await storage.clearAll(keepPinned: true)
+        let retainedSeed = try await storage.fetchItem(id: seedID)
+        XCTAssertEqual(retainedSeed, seed)
+        XCTAssertEqual(try Data(contentsOf: seedURL), image)
+        try await storage.clearAll(keepPinned: false)
+        XCTAssertTrue(try imageFiles().isEmpty)
+    }
+
+    func testImageInsertErrorPreservesImageReferencedByPersistedRow() async throws {
+        let image = generatedPNG
+        try executeFixtureSQL("""
+            CREATE TRIGGER fixture_fail_after_image AFTER INSERT ON items
+            BEGIN SELECT RAISE(FAIL, 'fixture persisted image'); END;
+            """)
+        do {
+            _ = try await storage.insert(type: .image, textContent: nil, imageData: image,
+                sourceBundleId: "test.persisted", contentHash: "persisted-image", byteSize: image.count)
+            XCTFail("Expected SQLite error after insertion")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "Insert failed: fixture persisted image")
+        }
+        let rows = try await storage.fetchItems(limit: 10, offset: 0)
+        XCTAssertEqual(rows.count, 1)
+        let item = try XCTUnwrap(rows.first)
+        let url = await storage.imageURL(for: try XCTUnwrap(item.imagePath))
+        XCTAssertEqual(try Data(contentsOf: url), image)
+        await storage.close()
+        storage = StorageManager(baseDirectory: tempDBPath)
+        try await storage.open()
+        let reloaded = try await storage.fetchItem(id: item.id)
+        XCTAssertEqual(reloaded, item)
+        XCTAssertEqual(try Data(contentsOf: url), image)
+    }
+
+    func testImageInsertErrorPreservesFileWhenReferenceLookupFails() async throws {
+        let image = generatedPNG
+        let seedID = try await storage.insert(type: .image, textContent: nil, imageData: image,
+            sourceBundleId: "test.seed", contentHash: "unknown-seed", byteSize: image.count)
+        try await storage.setPinned(id: seedID, pinned: true)
+        let seed = try await storage.fetchItem(id: seedID)
+        let originalFiles = try imageFiles()
+        // INSERT and the cleanup reference query encounter a real missing table.
+        try executeFixtureSQL("ALTER TABLE items RENAME TO fixture_saved_items")
+        do {
+            _ = try await storage.insert(type: .image, textContent: nil, imageData: image,
+                sourceBundleId: "test.unknown", contentHash: "unknown-image", byteSize: image.count)
+            XCTFail("Expected missing-table insertion failure")
+        } catch {
+            // SQLite may discover the external schema change during prepare or step.
+            XCTAssertTrue(["SQL prepare failed: no such table: items", "Insert failed: no such table: items"]
+                .contains(error.localizedDescription), error.localizedDescription)
+        }
+        let addedFiles = try imageFiles().subtracting(originalFiles)
+        XCTAssertEqual(addedFiles.count, 1)
+        let preservedURL = try XCTUnwrap(addedFiles.first)
+        XCTAssertEqual(try Data(contentsOf: preservedURL), image)
+        try executeFixtureSQL("ALTER TABLE fixture_saved_items RENAME TO items")
+        await storage.close()
+        storage = StorageManager(baseDirectory: tempDBPath)
+        try await storage.open()
+        let reloadedSeed = try await storage.fetchItem(id: seedID)
+        XCTAssertEqual(reloadedSeed, seed)
+        XCTAssertEqual(try Data(contentsOf: preservedURL), image)
+    }
+
     func testEviction() async throws {
         try await storage.open()
         
