@@ -175,16 +175,32 @@ actor StorageManager {
     ) throws -> Int64 {
         // Handle image storage
         var imagePath: String?
+        var writtenImageURL: URL?
         if let imageData = imageData, type == .image {
             let filename = "\(UUID().uuidString).png"
             let fileURL = imagesPath.appendingPathComponent(filename)
             try imageData.write(to: fileURL, options: .atomic)
             imagePath = filename
+            writtenImageURL = fileURL
         }
-        
+
         var stmt: OpaquePointer?
-        defer { sqlite3_finalize(stmt) }
-        
+        var inserted = false
+        defer {
+            sqlite3_finalize(stmt)
+            if !inserted, let imagePath, let writtenImageURL {
+                // A SQLite error can still leave an inserted row (e.g. RAISE(FAIL)).
+                // Remove only this attempt's image, and only when no reference is proven.
+                var referenceStmt: OpaquePointer?
+                defer { sqlite3_finalize(referenceStmt) }
+                if sqlite3_prepare_v2(db, "SELECT 1 FROM items WHERE imagePath = ? LIMIT 1", -1, &referenceStmt, nil) == SQLITE_OK,
+                   sqlite3_bind_text(referenceStmt, 1, imagePath, -1, SQLITE_TRANSIENT) == SQLITE_OK,
+                   sqlite3_step(referenceStmt) == SQLITE_DONE {
+                    try? FileManager.default.removeItem(at: writtenImageURL)
+                }
+            }
+        }
+
         let sql = """
             INSERT INTO items (createdAt, type, textContent, imagePath, sourceBundleId, contentHash, pinned, protected, byteSize)
             VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?)
@@ -230,6 +246,7 @@ actor StorageManager {
             throw StorageError.insertFailed(errorMessage)
         }
         
+        inserted = true
         return sqlite3_last_insert_rowid(db)
     }
     
