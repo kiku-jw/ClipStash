@@ -273,6 +273,119 @@ final class ExportServiceTests: XCTestCase {
         }
     }
 
+    private func assertPlainTextImages(_ result: ExportService.ExportResult, expected: [Int64: Data], itemCount: Int) throws {
+        XCTAssertEqual(result.itemCount, itemCount)
+        XCTAssertEqual(result.files.count, 1)
+        let textURL = try XCTUnwrap(result.files.first)
+        XCTAssertEqual(textURL.pathExtension, "txt")
+        let refs = try imageReferences(in: textURL)
+        XCTAssertEqual(refs.count, expected.count)
+        XCTAssertEqual(Set(refs).count, expected.count)
+        for (id, original) in expected {
+            let relativePath = try XCTUnwrap(refs.first { $0.hasSuffix("_\(id).png") })
+            let copyURL = textURL.deletingLastPathComponent().appendingPathComponent(relativePath)
+            XCTAssertEqual(try Data(contentsOf: copyURL), original)
+        }
+    }
+
+    func testPlainTextImageReferencesPreserveTextAndDistinctImagesAfterReopen() async throws {
+        let text = "Text retained with images\n"
+        let textID = try await storage.insert(type: .text, textContent: text, imageData: nil,
+            sourceBundleId: "fixture.text", contentHash: "fixture.text", byteSize: text.utf8.count)
+        let red = try makePNG(red: 255, blue: 0)
+        let blue = try makePNG(red: 0, blue: 255)
+        XCTAssertNotEqual(red, blue)
+        let redID = try await insertImage(red, source: "fixture.red")
+        let blueID = try await insertImage(blue, source: "fixture.blue")
+        try await storage.setPinned(id: redID, pinned: true)
+        let ids = [textID, redID, blueID]
+        let beforeRows = try await storage.fetchForExport(ids: ids)
+        let expected = [redID: red, blueID: blue]
+        let earlier = try await service.export(scope: .selected(ids), format: .plainText,
+            includeImageRefs: true, destinationDir: tempExportDir.appendingPathComponent("plain-first"))
+        try assertPlainTextImages(earlier, expected: expected, itemCount: 3)
+        let earlierBytes = try Data(contentsOf: earlier.files[0])
+        XCTAssertTrue(try String(contentsOf: earlier.files[0], encoding: .utf8).contains(text))
+
+        await storage.close()
+        storage = StorageManager(baseDirectory: tempExportDir.appendingPathComponent("database", isDirectory: true))
+        service = ExportService(storage: storage)
+        try await storage.open()
+        let reopenedRows = try await storage.fetchForExport(ids: ids)
+        XCTAssertEqual(Set(reopenedRows.map(\.id)), Set(beforeRows.map(\.id)))
+        for row in beforeRows {
+            XCTAssertEqual(reopenedRows.first { $0.id == row.id }, row)
+            if let path = row.imagePath {
+                let sourceURL = await storage.imageURL(for: path)
+                XCTAssertEqual(try Data(contentsOf: sourceURL), expected[row.id])
+            }
+        }
+        let retry = try await service.export(scope: .selected(ids), format: .plainText,
+            includeImageRefs: true, destinationDir: tempExportDir.appendingPathComponent("plain-reopened"))
+        try assertPlainTextImages(retry, expected: expected, itemCount: 3)
+        XCTAssertTrue(try String(contentsOf: retry.files[0], encoding: .utf8).contains(text))
+        try assertPlainTextImages(earlier, expected: expected, itemCount: 3)
+        XCTAssertEqual(try Data(contentsOf: earlier.files[0]), earlierBytes)
+    }
+
+    func testPlainTextMissingImageFailsAndRestoredSourceRetriesWithoutChangingEarlierExport() async throws {
+        let png = try makePNG(red: 0, blue: 255)
+        let id = try await insertImage(png, source: "fixture.plain-missing")
+        let earlier = try await service.export(scope: .selected([id]), format: .plainText,
+            includeImageRefs: true, destinationDir: tempExportDir.appendingPathComponent("plain-earlier"))
+        let earlierBytes = try Data(contentsOf: earlier.files[0])
+        let item = try await storage.fetchItem(id: id)
+        let sourceURL = await storage.imageURL(for: try XCTUnwrap(item?.imagePath))
+        try FileManager.default.removeItem(at: sourceURL)
+        let failedDestination = tempExportDir.appendingPathComponent("plain-failed")
+        do {
+            _ = try await service.export(scope: .selected([id]), format: .plainText,
+                includeImageRefs: true, destinationDir: failedDestination)
+            XCTFail("Missing source image must fail the plain text export")
+        } catch {
+            XCTAssertEqual((error as NSError).domain, NSCocoaErrorDomain)
+            XCTAssertEqual((error as NSError).code, NSFileReadNoSuchFileError)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: failedDestination.appendingPathComponent("export.txt").path))
+        let afterFailure = try await storage.fetchItem(id: id)
+        XCTAssertEqual(afterFailure, item)
+        try png.write(to: sourceURL, options: .atomic)
+        let retry = try await service.export(scope: .selected([id]), format: .plainText,
+            includeImageRefs: true, destinationDir: tempExportDir.appendingPathComponent("plain-restored"))
+        try assertPlainTextImages(retry, expected: [id: png], itemCount: 1)
+        try assertPlainTextImages(earlier, expected: [id: png], itemCount: 1)
+        XCTAssertEqual(try Data(contentsOf: earlier.files[0]), earlierBytes)
+        XCTAssertEqual(try Data(contentsOf: sourceURL), png)
+    }
+
+    func testPlainTextImageWithoutStoredPathFailsExplicitly() async throws {
+        let id = try await insertImage(nil, source: "fixture.plain-no-path")
+        let destination = tempExportDir.appendingPathComponent("plain-no-path")
+        do {
+            _ = try await service.export(scope: .selected([id]), format: .plainText,
+                includeImageRefs: true, destinationDir: destination)
+            XCTFail("An image row without its stored path must fail the plain text export")
+        } catch ExportError.writeError(let message) {
+            XCTAssertTrue(message.contains("\(id)"))
+            XCTAssertTrue(message.contains("no stored image path"))
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.appendingPathComponent("export.txt").path))
+    }
+
+    func testPlainTextWithoutImageReferencesKeepsPlaceholderWithoutCopying() async throws {
+        let id = try await insertImage(nil, source: "fixture.plain-placeholder")
+        let destination = tempExportDir.appendingPathComponent("plain-placeholder")
+        let result = try await service.export(scope: .selected([id]), format: .plainText,
+            includeImageRefs: false, destinationDir: destination)
+        XCTAssertEqual(result.itemCount, 1)
+        let text = try String(contentsOf: XCTUnwrap(result.files.first), encoding: .utf8)
+        XCTAssertTrue(text.contains("[Image]\n"))
+        XCTAssertTrue(try imageReferences(in: result.files[0]).isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.appendingPathComponent("images").path))
+    }
+
     func testSameSecondImagesKeepDistinctBytesAndPixelsAfterReopenAndRetry() async throws {
         let red = try makePNG(red: 255, blue: 0)
         let blue = try makePNG(red: 0, blue: 255)

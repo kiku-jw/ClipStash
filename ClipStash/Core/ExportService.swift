@@ -193,7 +193,7 @@ actor ExportService {
         case .markdown:
             return try await generateMarkdownEntry(item, timestamp: timestamp, source: source, includeImageRefs: includeImageRefs, imageCopyDir: imageCopyDir)
         case .plainText:
-            return generatePlainTextEntry(item, timestamp: timestamp, source: source)
+            return try await generatePlainTextEntry(item, timestamp: timestamp, source: source, includeImageRefs: includeImageRefs, imageCopyDir: imageCopyDir)
         }
     }
     
@@ -207,27 +207,13 @@ actor ExportService {
             }
             
         case .image:
-            if includeImageRefs, let imageCopyDir = imageCopyDir {
-                guard let imagePath = item.imagePath else {
-                    throw ExportError.writeError("Image \(item.id) has no stored image path")
-                }
-                // Copy image to export directory
-                let sourceURL = await storage.imageURL(for: imagePath)
-                let destFilename = generateImageFilename(from: item.createdAt, itemID: item.id, originalPath: imagePath)
-                let destURL = imageCopyDir.appendingPathComponent(destFilename)
-                
-                try FileManager.default.copyItem(at: sourceURL, to: destURL)
-                
-                entry += "[Image] images/\(destFilename)\n\n"
-            } else {
-                entry += "[Image]\n\n"
-            }
+            entry += try await generateImageReference(item, includeImageRefs: includeImageRefs, imageCopyDir: imageCopyDir) + "\n\n"
         }
         
         return entry
     }
     
-    private func generatePlainTextEntry(_ item: ClipItem, timestamp: String, source: String) -> String {
+    private func generatePlainTextEntry(_ item: ClipItem, timestamp: String, source: String, includeImageRefs: Bool, imageCopyDir: URL?) async throws -> String {
         var entry = "[\(timestamp)] (\(source))\n"
         
         switch item.type {
@@ -236,12 +222,24 @@ actor ExportService {
                 entry += text + "\n"
             }
         case .image:
-            entry += "[Image]\n"
+            entry += try await generateImageReference(item, includeImageRefs: includeImageRefs, imageCopyDir: imageCopyDir) + "\n"
         }
         
         entry += "\n" + String(repeating: "-", count: 40) + "\n\n"
         
         return entry
+    }
+
+    private func generateImageReference(_ item: ClipItem, includeImageRefs: Bool, imageCopyDir: URL?) async throws -> String {
+        guard includeImageRefs, let imageCopyDir else { return "[Image]" }
+        guard let imagePath = item.imagePath else {
+            throw ExportError.writeError("Image \(item.id) has no stored image path")
+        }
+        let sourceURL = await storage.imageURL(for: imagePath)
+        let destFilename = generateImageFilename(from: item.createdAt, itemID: item.id, originalPath: imagePath)
+        let destURL = imageCopyDir.appendingPathComponent(destFilename)
+        try FileManager.default.copyItem(at: sourceURL, to: destURL)
+        return "[Image] images/\(destFilename)"
     }
     
     private func generateImageFilename(from date: Date, itemID: Int64, originalPath: String) -> String {
