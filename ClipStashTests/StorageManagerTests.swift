@@ -200,6 +200,49 @@ final class StorageManagerTests: XCTestCase {
         }
     }
     
+    func testLast50PrefersTheNewerCopyAtASameSecondBoundary() async throws {
+        let oldCopy = "Boundary copy: initial invoice reference"
+        let newCopy = "Boundary copy: corrected invoice reference"
+        let samples = [oldCopy, newCopy] + (1...49).map { "Generated recent note \($0)" }
+        var ids: [Int64] = []
+        for (index, text) in samples.enumerated() {
+            let id = try await storage.insert(type: .text, textContent: text, imageData: nil,
+                sourceBundleId: "test.latest-export", contentHash: "fixture-\(index)",
+                byteSize: text.utf8.count)
+            ids.append(id)
+        }
+
+        // The two oldest copies share one timestamp second. The export limit
+        // must keep the second copy, which has the later insertion ID.
+        try executeFixtureSQL("""
+            UPDATE items SET createdAt = CASE
+                WHEN id IN (\(ids[0]), \(ids[1])) THEN 1794000000
+                ELSE 1794000000 + id
+            END
+            """)
+        let before = try await storage.fetchForExport()
+        let export = try await ExportService(storage: storage).export(
+            scope: .lastN(50), format: .plainText,
+            destinationDir: tempDBPath.appendingPathComponent("generated-export")
+        )
+        XCTAssertEqual(export.itemCount, 50)
+        XCTAssertEqual(export.files.count, 1)
+        let file = try XCTUnwrap(export.files.first)
+        let text = try String(contentsOf: file, encoding: .utf8)
+        XCTAssertTrue(text.contains(newCopy), "Export omitted the newer copy")
+        XCTAssertFalse(text.contains(oldCopy), "Export included the older copy instead")
+        for recent in samples.dropFirst(2) {
+            XCTAssertTrue(text.contains(recent))
+        }
+
+        await storage.close()
+        storage = StorageManager(baseDirectory: tempDBPath)
+        try await storage.open()
+        let reopened = try await storage.fetchForExport()
+        XCTAssertEqual(reopened.count, 51)
+        XCTAssertEqual(reopened, before)
+    }
+
     // Generated 2x2 PNG; no user clipboard data is used by these fixtures.
     private var generatedPNG: Data {
         Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGO4YxQFRAwQCgApdgWhAEbY9wAAAABJRU5ErkJggg==")!

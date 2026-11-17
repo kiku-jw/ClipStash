@@ -565,7 +565,7 @@ actor StorageManager {
             SELECT id, createdAt, type, textContent, imagePath, sourceBundleId, contentHash, pinned, protected, byteSize
             FROM items
             \(whereClause)
-            ORDER BY createdAt DESC
+            ORDER BY createdAt DESC, id DESC
             \(limitClause)
         """
         
