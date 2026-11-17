@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		020 /* ClipboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 304; };
 		019 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 303; };
 		017 /* ItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 114; };
 		018 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 115; };
@@ -39,6 +40,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		304 /* ClipboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardViewModelTests.swift; sourceTree = "<group>"; };
 		303 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
 		101 /* ClipStashApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipStashApp.swift; sourceTree = "<group>"; };
 		102 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -158,6 +160,7 @@
 				301,
 				302,
 				303,
+				304,
 			);
 			path = ClipStashTests;
 			sourceTree = "<group>";
@@ -295,6 +298,7 @@
 				014,
 				015,
 				019,
+				020,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// ViewModel for clipboard history list
 @MainActor
@@ -12,6 +13,22 @@ final class ClipboardViewModel: ObservableObject {
     
     private let pageSize = 50
     private var currentOffset = 0
+    private let injectedStorage: StorageManager?
+    private let injectedPasteboard: NSPasteboard?
+
+    // Resolve production singletons only when an action needs them, never at host startup.
+    private var storage: StorageManager { injectedStorage ?? .shared }
+    private var pasteboard: NSPasteboard { injectedPasteboard ?? .general }
+
+    init() {
+        injectedStorage = nil
+        injectedPasteboard = nil
+    }
+
+    init(storage: StorageManager, pasteboard: NSPasteboard) {
+        injectedStorage = storage
+        injectedPasteboard = pasteboard
+    }
     
     // MARK: - Loading
     
@@ -33,9 +50,9 @@ final class ClipboardViewModel: ObservableObject {
             let newItems: [ClipItem]
             
             if searchQuery.isEmpty {
-                newItems = try await StorageManager.shared.fetchItems(limit: pageSize, offset: currentOffset)
+                newItems = try await storage.fetchItems(limit: pageSize, offset: currentOffset)
             } else {
-                newItems = try await StorageManager.shared.search(query: searchQuery, limit: pageSize, offset: currentOffset)
+                newItems = try await storage.search(query: searchQuery, limit: pageSize, offset: currentOffset)
             }
             
             items.append(contentsOf: newItems)
@@ -58,7 +75,7 @@ final class ClipboardViewModel: ObservableObject {
     // MARK: - Actions
     
     func copyToClipboard(_ item: ClipItem) {
-        let pasteboard = NSPasteboard.general
+        let pasteboard = self.pasteboard
         pasteboard.clearContents()
         
         switch item.type {
@@ -69,7 +86,7 @@ final class ClipboardViewModel: ObservableObject {
         case .image:
             if let imagePath = item.imagePath {
                 Task {
-                    let url = await StorageManager.shared.imageURL(for: imagePath)
+                    let url = await storage.imageURL(for: imagePath)
                     if let image = NSImage(contentsOf: url) {
                         pasteboard.writeObjects([image])
                     }
@@ -80,7 +97,7 @@ final class ClipboardViewModel: ObservableObject {
     
     func deleteItem(_ item: ClipItem) async {
         do {
-            try await StorageManager.shared.delete(id: item.id)
+            try await storage.delete(id: item.id)
             items.removeAll { $0.id == item.id }
         } catch {
             self.error = error.localizedDescription
@@ -89,7 +106,7 @@ final class ClipboardViewModel: ObservableObject {
     
     func togglePinned(_ item: ClipItem) async {
         do {
-            try await StorageManager.shared.togglePinned(id: item.id)
+            try await storage.togglePinned(id: item.id)
             if let index = items.firstIndex(where: { $0.id == item.id }) {
                 items[index].pinned.toggle()
             }
@@ -102,7 +119,7 @@ final class ClipboardViewModel: ObservableObject {
     
     func clearHistory(keepPinned: Bool) async {
         do {
-            try await StorageManager.shared.clearAll(keepPinned: keepPinned)
+            try await storage.clearAll(keepPinned: keepPinned)
             await refresh()
         } catch {
             self.error = error.localizedDescription
