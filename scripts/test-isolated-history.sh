@@ -13,6 +13,7 @@ cp "$repo_dir/ClipStash/Core/StorageManager.swift" \
    "$repo_dir/ClipStash/UI/ClipboardViewModel.swift" \
    "$qa_dir/Sources/ClipStash/"
 cp "$repo_dir/ClipStashTests/ClipboardViewModelTests.swift" \
+   "$repo_dir/ClipStashTests/StorageManagerTests.swift" \
    "$qa_dir/Tests/ClipStashTests/"
 cat > "$qa_dir/Package.swift" <<'SWIFT'
 // swift-tools-version:5.9
@@ -29,4 +30,4 @@ let package = Package(
 SWIFT
 
 xcrun swift test --package-path "$qa_dir" --scratch-path "$qa_dir/build" \
-    --filter ClipboardViewModelTests
+    --filter 'ClipboardViewModelTests|StorageManagerTests'

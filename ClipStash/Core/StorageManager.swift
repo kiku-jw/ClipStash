@@ -41,19 +41,26 @@ actor StorageManager {
     func open() throws {
         guard db == nil else { return }
         
-        if sqlite3_open(dbPath.path, &db) != SQLITE_OK {
-            throw StorageError.cannotOpenDatabase(errorMessage)
+        do {
+            if sqlite3_open(dbPath.path, &db) != SQLITE_OK {
+                throw StorageError.cannotOpenDatabase(errorMessage)
+            }
+
+            // Enable WAL mode for better performance
+            try execute("PRAGMA journal_mode = WAL")
+            try execute("PRAGMA synchronous = NORMAL")
+
+            // Check FTS5 support
+            fts5Available = checkFTS5Support()
+
+            // Run migrations
+            try migrate()
+        } catch {
+            // SQLite can return a handle even when opening fails. Initialization
+            // failures must also leave this actor ready for a real retry.
+            close()
+            throw error
         }
-        
-        // Enable WAL mode for better performance
-        try execute("PRAGMA journal_mode = WAL")
-        try execute("PRAGMA synchronous = NORMAL")
-        
-        // Check FTS5 support
-        fts5Available = checkFTS5Support()
-        
-        // Run migrations
-        try migrate()
     }
     
     func close() {
@@ -61,6 +68,7 @@ actor StorageManager {
             sqlite3_close(db)
             db = nil
         }
+        fts5Available = false
     }
     
     // MARK: - Migrations

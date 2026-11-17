@@ -20,6 +20,10 @@ This compiles the actual storage, export, item and ViewModel sources in a tempor
 dependency-free Swift package. It checks generated history → search → pin → copy
 to a uniquely named pasteboard → Markdown export → close and reopen. Both storage
 and pasteboard must be provided together; partial test injection is not supported.
+It also runs storage checks, including failed database initialization, repeated
+failure, and retry after repairing a generated fixture. Corrupt fixture bytes and
+existing pinned text must remain intact; the app does not automatically repair
+or replace a damaged database.
 It uses a temporary database and named pasteboard, without launching the app,
 clipboard monitor, a control server, or accessing the general pasteboard. The
 temporary package and fixture are removed after the run. Keep the command output

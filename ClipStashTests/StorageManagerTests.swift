@@ -28,6 +28,96 @@ final class StorageManagerTests: XCTestCase {
         try await storage.open()
         // Should not throw
     }
+
+    func testCannotOpenDirectoryRepeatedlyAndRetrySameActorAfterRepair() async throws {
+        await storage.close()
+        let databaseURL = tempDBPath.appendingPathComponent("clipstash.db")
+        try FileManager.default.removeItem(at: databaseURL)
+        try FileManager.default.createDirectory(at: databaseURL, withIntermediateDirectories: false)
+        let sentinelURL = databaseURL.appendingPathComponent("sentinel")
+        let sentinel = Data("Keep this test fixture intact".utf8)
+        try sentinel.write(to: sentinelURL)
+
+        for _ in 0..<2 {
+            do {
+                try await storage.open()
+                XCTFail("Expected SQLITE_CANTOPEN for a directory at the database path")
+            } catch StorageError.cannotOpenDatabase(let message) {
+                XCTAssertEqual(message, "unable to open database file")
+            }
+            XCTAssertEqual(try Data(contentsOf: sentinelURL), sentinel)
+        }
+
+        // Only the test repairs its blocker; production must leave it untouched.
+        try FileManager.default.removeItem(at: databaseURL)
+        try await storage.open()
+        let count = try await storage.count()
+        XCTAssertEqual(count, 0)
+        XCTAssertEqual(try fixtureInteger("PRAGMA user_version"), 2)
+    }
+
+    func testCorruptDatabaseRepeatedlyFailsWithoutChangingBytesAndRetriesAfterRepair() async throws {
+        await storage.close()
+        let databaseURL = tempDBPath.appendingPathComponent("clipstash.db")
+        let corruptBytes = Data("This is an intentionally invalid SQLite fixture.\n".utf8)
+        try corruptBytes.write(to: databaseURL)
+
+        for _ in 0..<2 {
+            do {
+                try await storage.open()
+                XCTFail("Expected initialization to reject corrupt database bytes")
+            } catch StorageError.executeFailed(let message) {
+                XCTAssertEqual(message, "file is not a database")
+            }
+            XCTAssertEqual(try Data(contentsOf: databaseURL), corruptBytes)
+        }
+
+        try FileManager.default.removeItem(at: databaseURL)
+        try await storage.open()
+        let count = try await storage.count()
+        XCTAssertEqual(count, 0)
+        XCTAssertEqual(try fixtureInteger("PRAGMA user_version"), 2)
+    }
+
+    func testMigrationFailureRetriesSameActorAndPreservesPinnedNULText() async throws {
+        let text = "Pinned before\u{0000}after 🙂\r\n"
+        let seedID = try await storage.insert(type: .text, textContent: text,
+            imageData: nil, sourceBundleId: "test.migration", contentHash: "migration-seed",
+            byteSize: text.utf8.count)
+        try await storage.setPinned(id: seedID, pinned: true)
+        let fetchedSeed = try await storage.fetchItem(id: seedID)
+        let seed = try XCTUnwrap(fetchedSeed)
+        await storage.close()
+        // WAL setup and FTS detection succeed before this v1 -> v2 migration fails.
+        try executeFixtureSQL("""
+            DROP INDEX idx_items_sourceBundleId;
+            CREATE TABLE idx_items_sourceBundleId (blocker INTEGER);
+            PRAGMA user_version = 1;
+            """)
+
+        for _ in 0..<2 {
+            do {
+                try await storage.open()
+                XCTFail("Expected the fixture table to block the migration index")
+            } catch StorageError.executeFailed(let message) {
+                XCTAssertTrue(message.contains("idx_items_sourceBundleId"), message)
+            }
+            XCTAssertEqual(try fixtureInteger("PRAGMA user_version"), 1)
+        }
+
+        try executeFixtureSQL("DROP TABLE idx_items_sourceBundleId")
+        try await storage.open()
+        XCTAssertEqual(try fixtureInteger("PRAGMA user_version"), 2)
+        XCTAssertEqual(try fixtureInteger("""
+            SELECT count(*) FROM sqlite_master
+            WHERE type = 'index' AND name = 'idx_items_sourceBundleId' AND tbl_name = 'items'
+            """), 1)
+        let reloaded = try await storage.fetchItem(id: seedID)
+        let count = try await storage.count()
+        XCTAssertEqual(reloaded, seed)
+        XCTAssertEqual(reloaded?.textContent.map { Data($0.utf8) }, Data(text.utf8))
+        XCTAssertEqual(count, 1)
+    }
     
     func testInsertAndFetch() async throws {
         try await storage.open()
@@ -126,6 +216,20 @@ final class StorageManagerTests: XCTestCase {
             sqlite3_free(message)
             throw StorageError.executeFailed(detail)
         }
+    }
+
+    private func fixtureInteger(_ sql: String) throws -> Int {
+        var db: OpaquePointer?
+        let result = sqlite3_open(tempDBPath.appendingPathComponent("clipstash.db").path, &db)
+        defer { sqlite3_close(db) }
+        guard result == SQLITE_OK else { throw StorageError.cannotOpenDatabase("Fixture database") }
+        var statement: OpaquePointer?
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK,
+              sqlite3_step(statement) == SQLITE_ROW else {
+            throw StorageError.executeFailed("Fixture integer query failed")
+        }
+        return Int(sqlite3_column_int64(statement, 0))
     }
 
     private func imageFiles() throws -> Set<URL> {
