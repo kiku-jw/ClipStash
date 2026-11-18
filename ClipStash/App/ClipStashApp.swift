@@ -66,12 +66,12 @@ class DetailWindowController {
     
     private var detailWindow: NSWindow?
     
-    func showDetail(for item: ClipItem) {
+    func showDetail(for item: ClipItem, viewModel: ClipboardViewModel) {
         // Close existing window if any
         detailWindow?.close()
         
         // Create new window
-        let contentView = ItemDetailView(item: item)
+        let contentView = ItemDetailView(item: item, viewModel: viewModel)
         let hostingView = NSHostingController(rootView: contentView)
         
         let window = NSWindow(contentViewController: hostingView)

@@ -13,6 +13,7 @@ final class ClipboardViewModel: ObservableObject {
     
     private let pageSize = 50
     private var currentOffset = 0
+    private var copyRequest: UInt64 = 0
     private let injectedStorage: StorageManager?
     private let injectedPasteboard: NSPasteboard?
 
@@ -74,27 +75,39 @@ final class ClipboardViewModel: ObservableObject {
     
     // MARK: - Actions
     
-    func copyToClipboard(_ item: ClipItem) {
+    func copyToClipboard(_ item: ClipItem, completion: @escaping (Bool) -> Void = { _ in }) {
+        copyRequest &+= 1
+        let request = copyRequest
         let pasteboard = self.pasteboard
-        pasteboard.clearContents()
-        
+
         switch item.type {
         case .text:
-            if let text = item.textContent {
-                pasteboard.setString(text, forType: .string)
+            guard let text = item.textContent else {
+                completion(false)
+                return
             }
+            pasteboard.clearContents()
+            completion(pasteboard.setString(text, forType: .string))
         case .image:
-            if let imagePath = item.imagePath {
-                Task {
-                    let url = await storage.imageURL(for: imagePath)
-                    if let image = NSImage(contentsOf: url) {
-                        pasteboard.writeObjects([image])
-                    }
+            guard let imagePath = item.imagePath else {
+                completion(false)
+                return
+            }
+            let changeCount = pasteboard.changeCount
+            Task {
+                let url = await storage.imageURL(for: imagePath)
+                guard request == copyRequest,
+                      let image = NSImage(contentsOf: url), image.isValid,
+                      pasteboard.changeCount == changeCount else {
+                    completion(false)
+                    return
                 }
+                pasteboard.clearContents()
+                completion(pasteboard.writeObjects([image]))
             }
         }
     }
-    
+
     func deleteItem(_ item: ClipItem) async {
         do {
             try await storage.delete(id: item.id)

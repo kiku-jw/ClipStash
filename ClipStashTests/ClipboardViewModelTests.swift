@@ -83,4 +83,96 @@ final class ClipboardViewModelTests: XCTestCase {
             throw error
         }
     }
+
+    @MainActor
+    func testCopyingHistoryImagePreservesTheBoardUntilItCanWriteCurrentContent() async throws {
+        let suffix = UUID().uuidString
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ClipStashImageCopyTests-\(suffix)", isDirectory: true)
+        let storage = StorageManager(baseDirectory: directory)
+        let board = NSPasteboard(name: NSPasteboard.Name("ClipStashImageCopyTests-\(suffix)"))
+        defer {
+            board.releaseGlobally()
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try await storage.open()
+
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 2, pixelsHigh: 2,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 8, bitsPerPixel: 32))
+        var pixel = [70, 140, 210, 255]
+        bitmap.setPixel(&pixel, atX: 0, y: 0)
+        let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        let imageID = try await storage.insert(type: .image, textContent: nil, imageData: png,
+            sourceBundleId: "test.generated.window", contentHash: "generated-image", byteSize: png.count)
+        let correction = "Corrected screen-share address: https://example.com/training"
+        let textID = try await storage.insert(type: .text, textContent: correction, imageData: nil,
+            sourceBundleId: "test.generated.notes", contentHash: "generated-text", byteSize: correction.utf8.count)
+        let model = ClipboardViewModel(storage: storage, pasteboard: board)
+        await model.loadInitial()
+        let image = try XCTUnwrap(model.items.first { $0.id == imageID })
+        let text = try XCTUnwrap(model.items.first { $0.id == textID })
+        let imagePath = try XCTUnwrap(image.imagePath)
+        let imageURL = await storage.imageURL(for: imagePath)
+        let heldURL = directory.appendingPathComponent("held-image.png")
+
+        let protectedText = "Initial screen-share address: https://example.com/initial"
+        board.clearContents()
+        XCTAssertTrue(board.setString(protectedText, forType: .string))
+        let savedCount = board.changeCount
+        try FileManager.default.moveItem(at: imageURL, to: heldURL)
+        let missing = await withCheckedContinuation { continuation in
+            model.copyToClipboard(image) { continuation.resume(returning: $0) }
+        }
+        XCTAssertFalse(missing)
+        XCTAssertEqual(board.changeCount, savedCount)
+        XCTAssertEqual(board.string(forType: .string), protectedText)
+
+        try Data("Incomplete image from interrupted restore".utf8).write(to: imageURL)
+        let corrupt = await withCheckedContinuation { continuation in
+            model.copyToClipboard(image) { continuation.resume(returning: $0) }
+        }
+        XCTAssertFalse(corrupt)
+        XCTAssertEqual(board.changeCount, savedCount)
+        XCTAssertEqual(board.string(forType: .string), protectedText)
+        try FileManager.default.removeItem(at: imageURL)
+        try FileManager.default.moveItem(at: heldURL, to: imageURL)
+
+        let supersededByApp = await withCheckedContinuation { continuation in
+            model.copyToClipboard(image) { continuation.resume(returning: $0) }
+            board.clearContents()
+            XCTAssertTrue(board.setString(correction, forType: .string))
+        }
+        XCTAssertFalse(supersededByApp)
+        XCTAssertEqual(board.string(forType: .string), correction)
+        XCTAssertNil(board.data(forType: .tiff))
+
+        let supersededInHistory = await withCheckedContinuation { continuation in
+            model.copyToClipboard(image) { continuation.resume(returning: $0) }
+            model.copyToClipboard(text)
+        }
+        XCTAssertFalse(supersededInHistory)
+        XCTAssertEqual(board.string(forType: .string), correction)
+        XCTAssertNil(board.data(forType: .tiff))
+
+        let retried = await withCheckedContinuation { continuation in
+            model.copyToClipboard(image) { continuation.resume(returning: $0) }
+        }
+        XCTAssertTrue(retried)
+        let tiff = try XCTUnwrap(board.data(forType: .tiff))
+        let pasted = try XCTUnwrap(NSBitmapImageRep(data: tiff))
+        XCTAssertEqual(pasted.pixelsWide, bitmap.pixelsWide)
+        XCTAssertEqual(pasted.pixelsHigh, bitmap.pixelsHigh)
+        var pastedPixel = [Int](repeating: 0, count: 4)
+        pasted.getPixel(&pastedPixel, atX: 0, y: 0)
+        XCTAssertEqual(pastedPixel, pixel)
+        XCTAssertEqual(try Data(contentsOf: imageURL), png)
+
+        await storage.close()
+        let reopened = StorageManager(baseDirectory: directory)
+        try await reopened.open()
+        let storedItems = try await reopened.fetchItems(limit: 10, offset: 0)
+        XCTAssertEqual(Set(storedItems), Set([image, text]))
+        await reopened.close()
+    }
 }

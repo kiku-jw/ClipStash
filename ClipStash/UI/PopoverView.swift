@@ -299,7 +299,7 @@ struct PopoverView: View {
                             }
                             .simultaneousGesture(
                                 TapGesture(count: 2).onEnded {
-                                    DetailWindowController.shared.showDetail(for: item)
+                                    DetailWindowController.shared.showDetail(for: item, viewModel: viewModel)
                                 }
                             )
                             .onHover { isHovered in

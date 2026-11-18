@@ -4,8 +4,10 @@ import AppKit
 /// Detail view for displaying full clipboard item content
 struct ItemDetailView: View {
     let item: ClipItem
+    let viewModel: ClipboardViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var image: NSImage?
+    @State private var copyFailed = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -47,10 +49,16 @@ struct ItemDetailView: View {
             // Actions
             HStack {
                 Button("Copy Full Content") {
-                    copyToClipboard()
+                    viewModel.copyToClipboard(item) { copied in
+                        if copied {
+                            dismiss()
+                        } else {
+                            copyFailed = true
+                        }
+                    }
                 }
                 .buttonStyle(.borderedProminent)
-                
+
                 Spacer()
                 
                 Button("Close") {
@@ -64,6 +72,9 @@ struct ItemDetailView: View {
         .frame(minWidth: 400, minHeight: 300)
         .onAppear {
             loadImage()
+        }
+        .alert("Couldn’t copy this item", isPresented: $copyFailed) {
+            Button("OK", role: .cancel) {}
         }
     }
     
@@ -112,18 +123,5 @@ struct ItemDetailView: View {
                 }
             }
         }
-    }
-    
-    private func copyToClipboard() {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        
-        if item.type == .image, let image = image {
-            pb.writeObjects([image])
-        } else if let content = item.textContent {
-            pb.setString(content, forType: .string)
-        }
-        
-        dismiss()
     }
 }
