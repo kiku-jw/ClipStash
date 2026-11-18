@@ -279,7 +279,7 @@ actor StorageManager {
         var stmt: OpaquePointer?
         defer { sqlite3_finalize(stmt) }
         
-        let orderBy = pinnedFirst ? "pinned DESC, createdAt DESC" : "createdAt DESC"
+        let orderBy = pinnedFirst ? "pinned DESC, createdAt DESC, id DESC" : "createdAt DESC, id DESC"
         let sql = "SELECT id, createdAt, type, textContent, imagePath, sourceBundleId, contentHash, pinned, protected, byteSize FROM items ORDER BY \(orderBy) LIMIT ? OFFSET ?"
         
         if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) != SQLITE_OK {
@@ -303,7 +303,7 @@ actor StorageManager {
                 SELECT id, createdAt, type, textContent, imagePath, sourceBundleId, contentHash, pinned, protected, byteSize
                 FROM items
                 WHERE id IN (SELECT rowid FROM items_fts WHERE items_fts MATCH ?)
-                ORDER BY pinned DESC, createdAt DESC
+                ORDER BY pinned DESC, createdAt DESC, id DESC
                 LIMIT ? OFFSET ?
             """
         } else {
@@ -311,7 +311,7 @@ actor StorageManager {
                 SELECT id, createdAt, type, textContent, imagePath, sourceBundleId, contentHash, pinned, protected, byteSize
                 FROM items
                 WHERE textContent LIKE '%' || ? || '%'
-                ORDER BY pinned DESC, createdAt DESC
+                ORDER BY pinned DESC, createdAt DESC, id DESC
                 LIMIT ? OFFSET ?
             """
         }

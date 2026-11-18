@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 import SQLite3
 @testable import ClipStash
@@ -200,6 +201,54 @@ final class StorageManagerTests: XCTestCase {
         }
     }
     
+    @MainActor
+    func testHistoryAndSearchPreferNewerCopiesWithinOneSecond() async throws {
+        let sameSecond: Int64 = 1_794_000_000
+        let source = "test.same-second-history"
+        let pinnedText = "Pinned venue directions"
+        let pinned = try await storage.insert(type: .text, textContent: pinnedText, imageData: nil,
+            sourceBundleId: source, contentHash: "same-second-pinned", byteSize: pinnedText.utf8.count)
+        try await storage.setPinned(id: pinned, pinned: true)
+
+        var ids: [Int64] = []
+        for number in 1...55 {
+            let text = "Venue access code revision \(number)"
+            let id = try await storage.insert(type: .text, textContent: text, imageData: nil,
+                sourceBundleId: source, contentHash: "same-second-\(number)", byteSize: text.utf8.count)
+            ids.append(id)
+        }
+        try executeFixtureSQL("UPDATE items SET createdAt = \(sameSecond)")
+        let expected = [pinned] + Array(ids.reversed())
+
+        let history = try await storage.fetchItems(limit: 50, offset: 0)
+        let historyTail = try await storage.fetchItems(limit: 50, offset: 50)
+        XCTAssertEqual((history + historyTail).map(\.id), expected)
+        let chronological = try await storage.fetchItems(limit: 56, offset: 0, pinnedFirst: false)
+        XCTAssertEqual(chronological.map(\.id), Array(ids.reversed()) + [pinned])
+
+        let board = NSPasteboard(name: NSPasteboard.Name("ClipStashHistoryOrderTest-\(UUID().uuidString)"))
+        defer { board.releaseGlobally() }
+        let viewModel = ClipboardViewModel(storage: storage, pasteboard: board)
+        viewModel.searchQuery = "venue"
+        await viewModel.search()
+        XCTAssertEqual(viewModel.items.map(\.id), Array(expected.prefix(50)))
+        await viewModel.loadMore()
+        XCTAssertEqual(viewModel.items.map(\.id), expected)
+        XCTAssertFalse(viewModel.hasMore)
+        viewModel.selectNext() // Pinned directions.
+        viewModel.selectNext() // Latest ordinary match.
+        viewModel.copySelected()
+        XCTAssertEqual(board.string(forType: .string), "Venue access code revision 55")
+
+        await storage.close()
+        let reopened = StorageManager(baseDirectory: tempDBPath)
+        try await reopened.open()
+        let reopenedHistory = try await reopened.fetchItems(limit: 56, offset: 0)
+        XCTAssertEqual(reopenedHistory.map(\.id), expected)
+        XCTAssertTrue(reopenedHistory.first?.pinned == true)
+        await reopened.close()
+    }
+
     func testLast50PrefersTheNewerCopyAtASameSecondBoundary() async throws {
         let oldCopy = "Boundary copy: initial invoice reference"
         let newCopy = "Boundary copy: corrected invoice reference"
