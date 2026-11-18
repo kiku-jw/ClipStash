@@ -11,16 +11,16 @@
 <p align="center">
   <a href="https://apps.apple.com/app/clipstash-pro/id6756281955"><img src="https://img.shields.io/badge/App_Store-0D96F6?style=flat&logo=app-store&logoColor=white" alt="App Store"></a>
   <a href="https://www.producthunt.com/products/clipstash-macos-privacyfirst-clipboard"><img src="https://img.shields.io/badge/Product_Hunt-DA552F?style=flat&logo=producthunt&logoColor=white" alt="Product Hunt"></a>
-  <a href="https://github.com/KikuAI-Lab/ClipStash/actions"><img src="https://github.com/KikuAI-Lab/ClipStash/actions/workflows/ci.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/kiku-jw/ClipStash/actions"><img src="https://github.com/kiku-jw/ClipStash/actions/workflows/ci.yml/badge.svg" alt="Build"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0"></a>
   <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-14%2B-brightgreen" alt="macOS 14+"></a>
 </p>
 
 <p align="center">
   <a href="https://apps.apple.com/app/clipstash-pro/id6756281955">App Store</a> •
-  <a href="https://kikuai-lab.github.io/ClipStash">Website</a> •
-  <a href="https://github.com/KikuAI-Lab/ClipStash/wiki">Documentation</a> •
-  <a href="https://github.com/KikuAI-Lab/ClipStash/releases/latest/download/ClipStash.app.zip">Direct Download</a>
+  <a href="https://kiku-jw.github.io/ClipStash/">Website</a> •
+  <a href="#export-files-for-later-use">Export instructions</a> •
+  <a href="https://github.com/kiku-jw/ClipStash/releases">Release history</a>
 </p>
 
 ---
@@ -67,20 +67,16 @@ its images or preserve every reference.
 
 [![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/app/clipstash-pro/id6756281955)
 
-### Direct Download
+### Older GitHub Releases
 
-[⬇️ **Download ClipStash.app.zip**](https://github.com/KikuAI-Lab/ClipStash/releases/latest/download/ClipStash.app.zip)
+The [GitHub release archive](https://github.com/kiku-jw/ClipStash/releases) contains an older build.
+Use the App Store link for the distributed App Store version.
 
-1. Download and unzip
-2. Run in Terminal: `xattr -cr ~/Downloads/ClipStash.app`
-3. Move `ClipStash.app` to `/Applications` and launch
-
-> **Why xattr?** macOS blocks apps not signed with Apple Developer ID. This command removes the quarantine flag. ClipStash is open-source — [verify the code](https://github.com/KikuAI-Lab/ClipStash).
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/KikuAI-Lab/ClipStash.git
+git clone https://github.com/kiku-jw/ClipStash.git
 cd ClipStash
 open ClipStash.xcodeproj
 # Build with ⌘B, Run with ⌘R
@@ -185,12 +181,12 @@ A: Delete app + `rm -rf ~/Library/Application\ Support/ClipStash`
 
 ## Documentation
 
-- [Getting Started](https://github.com/KikuAI-Lab/ClipStash/wiki/Getting-Started) — Installation & first steps
-- [Configuration](https://github.com/KikuAI-Lab/ClipStash/wiki/Configuration) — All settings explained
-- [Privacy & Security](https://github.com/KikuAI-Lab/ClipStash/wiki/Privacy-and-Security) — How data stays private
-- [FAQ](https://github.com/KikuAI-Lab/ClipStash/wiki/FAQ) — Common questions
-- [Troubleshooting](https://github.com/KikuAI-Lab/ClipStash/wiki/Troubleshooting) — Fix common issues
-- [Comparison](https://github.com/KikuAI-Lab/ClipStash/wiki/Comparison) — vs Maccy, CopyQ, PasteBar
+- [Getting Started](https://github.com/kiku-jw/ClipStash/wiki/Getting-Started) — Installation & first steps
+- [Configuration](https://github.com/kiku-jw/ClipStash/wiki/Configuration) — All settings explained
+- [Privacy & Security](https://github.com/kiku-jw/ClipStash/wiki/Privacy-and-Security) — How data stays private
+- [FAQ](https://github.com/kiku-jw/ClipStash/wiki/FAQ) — Common questions
+- [Troubleshooting](https://github.com/kiku-jw/ClipStash/wiki/Troubleshooting) — Fix common issues
+- [Comparison](https://github.com/kiku-jw/ClipStash/wiki/Comparison) — vs Maccy, CopyQ, PasteBar
 
 ## Contributing
 

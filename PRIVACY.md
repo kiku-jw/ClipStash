@@ -1,13 +1,15 @@
 # Privacy Policy
 
 **ClipStash — Clipboard History Manager**  
-Last updated: December 8, 2024
+Last updated: November 18, 2026
 
 ---
 
 ## Summary
 
-ClipStash is a **100% local, privacy-first** clipboard manager. We collect **no personal data**, make **no network requests**, and store all clipboard history **only on your device**.
+ClipStash stores clipboard history on your Mac. It has no built-in account,
+clipboard sync, or usage analytics. Clipboard history and exported files can
+contain any personal or sensitive information you copy.
 
 ---
 
@@ -25,12 +27,8 @@ ClipStash is a **100% local, privacy-first** clipboard manager. We collect **no 
 
 ### What We Do NOT Collect
 
-- ❌ Personal identifiers (name, email, phone)
-- ❌ Device identifiers
-- ❌ Location data
-- ❌ Usage analytics
-- ❌ Crash reports
-- ❌ Any data transmitted over the network
+- ClipStash does not ask for account details or location.
+- It has no built-in usage analytics or crash reporting.
 
 ---
 
@@ -39,8 +37,8 @@ ClipStash is a **100% local, privacy-first** clipboard manager. We collect **no 
 Clipboard data is captured by monitoring `NSPasteboard.changeCount` every 300ms while the app is running. This is a standard macOS API for clipboard access.
 
 **Automatic Protections:**
-- Password manager content (marked as `org.nspasteboard.ConcealedType`) is ignored by default
-- Transient clipboard content (marked as `org.nspasteboard.TransientType`) is ignored by default
+- The sensitive clipboard filters can omit content marked concealed or transient.
+- These types depend on markers from the app that copied the content.
 - User-specified applications can be excluded from capture
 
 ---
@@ -55,7 +53,7 @@ All data is stored locally in:
 | `clipstash.db` | SQLite database with text entries |
 | `images/` | Captured image files |
 
-**Encryption:** Optional AES-GCM encryption is available for pinned items using keys stored in macOS Keychain.
+History and exports should be treated as sensitive files. Exports are written without app-level encryption.
 
 ---
 
@@ -93,17 +91,9 @@ Simply quit and uninstall ClipStash. No data persists elsewhere.
 
 ## Network Usage
 
-**ClipStash makes ZERO network requests.**
-
-- No analytics
-- No telemetry
-- No update checks
-- No cloud sync
-- No crash reporting
-
-This is enforced by macOS App Sandbox (when enabled).
-
----
+Clipboard capture, search, and export run locally. The app can open external
+product and support links when selected. Exported files are subject to the
+storage and sharing settings of the folder you choose.
 
 ## Third-Party Services
 
@@ -115,10 +105,9 @@ ClipStash uses **no third-party services** or SDKs.
 
 We understand clipboard managers handle sensitive data:
 
-1. **Passwords:** Content from password managers (1Password, Bitwarden, etc.) is automatically excluded via `ConcealedType` detection
-2. **User Control:** You can disable capture from any app via Settings → Privacy → Ignored Apps
-3. **No Transmission:** Data never leaves your device
-4. **Local Encryption:** Optional for pinned items
+1. **Clipboard markers:** Concealed and transient filters depend on flags supplied by the source app.
+2. **App exclusions:** Disable capture from configured apps in privacy settings.
+3. **Exports:** Review history and exported files for sensitive content before sharing.
 
 ---
 
@@ -139,7 +128,7 @@ We will update this policy if our data practices change. Updates will be reflect
 For privacy questions or concerns:
 
 - **Website:** https://kikuai.dev
-- **GitHub:** https://github.com/KikuAI-Lab/ClipStash
+- **GitHub:** https://github.com/kiku-jw/ClipStash
 - **Email:** privacy@kikuai.dev
 
 ---

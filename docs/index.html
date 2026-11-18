@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClipStash — Clipboard Manager for macOS</title>
     <meta name="description"
-        content="Lightweight, privacy-first clipboard history manager for macOS. No network, no telemetry, just pure productivity.">
-    <link rel="canonical" href="https://kikuai-lab.github.io/ClipStash/">
+        content="Search and pin your Mac clipboard history. Export selected text and screenshots as local files.">
+    <link rel="canonical" href="https://kiku-jw.github.io/ClipStash/">
     <link rel="icon" type="image/png" href="assets/icon.png">
     <style>
         :root {
@@ -108,21 +108,6 @@
         .hero {
             padding: 100px 0 80px;
             text-align: center;
-        }
-
-        .hero-badge {
-            display: inline-block;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-bottom: 24px;
-        }
-
-        .hero-badge span {
-            color: var(--accent);
         }
 
         h1 {
@@ -236,7 +221,7 @@
             font-size: 0.95rem;
         }
 
-        /* Killer Features */
+        /* Privacy */
         .killer-section {
             padding: 80px 0;
             background: var(--bg-secondary);
@@ -280,51 +265,6 @@
             content: "→";
             color: var(--accent);
             font-weight: bold;
-        }
-
-        .killer-visual {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 300px;
-        }
-
-        .killer-visual code {
-            display: block;
-            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-            font-size: 0.85rem;
-            color: var(--accent);
-            white-space: pre;
-            line-height: 1.8;
-        }
-
-        /* Stats */
-        .stats {
-            padding: 60px 0;
-            display: flex;
-            justify-content: center;
-            gap: 80px;
-            flex-wrap: wrap;
-        }
-
-        .stat {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--accent);
-            margin-bottom: 8px;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
         }
 
         /* CTA */
@@ -376,56 +316,6 @@
             font-size: 0.85rem;
         }
 
-        /* Comparison Table */
-        .comparison-section {
-            padding: 60px 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 40px;
-        }
-
-        .comparison-table-wrapper {
-            overflow-x: auto;
-            width: 100%;
-            max-width: 900px;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-            min-width: 500px;
-        }
-
-        .comparison-table th,
-        .comparison-table td {
-            padding: 12px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .comparison-table th {
-            text-align: center;
-            color: var(--text-secondary);
-        }
-
-        .comparison-table th:first-child {
-            text-align: left;
-        }
-
-        .comparison-table td {
-            text-align: center;
-        }
-
-        .comparison-table td:first-child {
-            text-align: left;
-        }
-
-        .comparison-table .highlight {
-            color: var(--accent);
-        }
-
         /* Responsive */
         @media (max-width: 768px) {
             h1 {
@@ -448,15 +338,6 @@
 
             .killer-content h2 {
                 font-size: 1.6rem;
-            }
-
-            .stats {
-                gap: 30px;
-                padding: 40px 0;
-            }
-
-            .stat-value {
-                font-size: 2rem;
             }
 
             .nav-links {
@@ -492,15 +373,6 @@
                 flex-wrap: wrap;
                 gap: 16px;
             }
-
-            .comparison-table {
-                font-size: 0.8rem;
-            }
-
-            .comparison-table th,
-            .comparison-table td {
-                padding: 8px;
-            }
         }
     </style>
 </head>
@@ -518,7 +390,7 @@
                 <nav class="nav-links">
                     <a href="#features">Features</a>
                     <a href="#privacy">Privacy</a>
-                    <a href="https://github.com/KikuAI-Lab/ClipStash">GitHub</a>
+                    <a href="https://github.com/kiku-jw/ClipStash">GitHub</a>
                 </nav>
             </div>
         </div>
@@ -527,29 +399,18 @@
     <main>
         <section class="hero">
             <div class="container">
-                <div class="hero-badge">
-                    <span>✨</span> Privacy-first • Zero telemetry • 100% offline
-                </div>
-                <h1>Your clipboard,<br>supercharged.</h1>
+                <h1>Mac clipboard history for your work notes</h1>
                 <p class="hero-subtitle">
-                    Lightweight clipboard history manager for macOS.
-                    Fast search, smart export, and absolute privacy.
+                    Find copied text and screenshots, pin what matters, and export the clips you want to keep.
                 </p>
                 <div class="hero-buttons">
                     <a href="https://apps.apple.com/app/clipstash-pro/id6756281955" class="btn btn-primary">
                         🍎 Download on App Store
                     </a>
-                    <a href="https://github.com/KikuAI-Lab/ClipStash" class="btn btn-secondary">
+                    <a href="https://github.com/kiku-jw/ClipStash" class="btn btn-secondary">
                         View Source
                     </a>
                 </div>
-                <p style="margin-top: 16px; font-size: 0.85rem; color: var(--text-secondary);">
-                    Also available: <a
-                        href="https://github.com/KikuAI-Lab/ClipStash/releases/latest/download/ClipStash.app.zip"
-                        style="color: var(--accent);">Direct Download</a>
-                    • <a href="https://www.producthunt.com/products/clipstash-macos-privacyfirst-clipboard"
-                        style="color: var(--accent);">Product Hunt</a>
-                </p>
             </div>
         </section>
 
@@ -558,93 +419,21 @@
                 <h2 class="section-title">Why ClipStash?</h2>
                 <div class="features-grid">
                     <div class="feature-card">
-                        <div class="feature-icon">🔒</div>
-                        <h3>Zero Network Access</h3>
-                        <p>No internet connection. Ever. Sandbox enforced — we literally cannot connect.</p>
-                    </div>
-                    <div class="feature-card">
                         <div class="feature-icon">⚡</div>
-                        <h3>Lightning Fast Search</h3>
-                        <p>SQLite FTS5 full-text search. Find any clip instantly, even with thousands of items.</p>
-                    </div>
-                    <div class="feature-card"
-                        style="border-color: var(--accent); background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0,212,255,0.1) 100%);">
-                        <div class="feature-icon">📤</div>
-                        <h3>NotebookLM Export <span style="color: var(--accent); font-size: 0.7em;">UNIQUE</span></h3>
-                        <p>The only clipboard manager with NotebookLM-optimized export. Auto-splits at 500K word limit.
-                        </p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">🪶</div>
-                        <h3>Ultralight</h3>
-                        <p>&lt;60MB RAM, &lt;0.5% CPU idle. Native SwiftUI, runs silently in menu bar.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">🔐</div>
-                        <h3>Password Manager Aware</h3>
-                        <p>Detects both Concealed and Transient clipboard flags. Auto-skips 1Password, Bitwarden.</p>
+                        <h3>Search recent copies</h3>
+                        <p>Find text in your local history and preview copied images before you reuse them.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">📌</div>
-                        <h3>Pin & Filter by App</h3>
-                        <p>Pin important clips. Export only from specific apps. Organize your workflow.</p>
+                        <h3>Pin and filter</h3>
+                        <p>Pin useful clips and filter the history by source app.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📤</div>
+                        <h3>Export to a folder</h3>
+                        <p>The current source can export pinned clips or filter by source app. The Markdown or plain-text export can include a folder of separate image files.</p>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- Comparison Section -->
-        <section class="comparison-section">
-            <h2 class="section-title">How We Compare</h2>
-            <div class="comparison-table-wrapper">
-                <table class="comparison-table">
-                    <thead>
-                        <tr>
-                            <th>Feature</th>
-                            <th class="highlight">ClipStash</th>
-                            <th>Maccy</th>
-                            <th>CopyQ</th>
-                            <th>PasteBar</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>NotebookLM Export</td>
-                            <td class="highlight">✅ Unique</td>
-                            <td>❌</td>
-                            <td>❌</td>
-                            <td>❌</td>
-                        </tr>
-                        <tr>
-                            <td>Zero Network (Verifiable)</td>
-                            <td class="highlight">✅ Sandboxed</td>
-                            <td>✅</td>
-                            <td>❌</td>
-                            <td>✅</td>
-                        </tr>
-                        <tr>
-                            <td>FTS5 Search</td>
-                            <td class="highlight">✅</td>
-                            <td>✅</td>
-                            <td>Fuzzy</td>
-                            <td>Basic</td>
-                        </tr>
-                        <tr>
-                            <td>App-Filtered Export</td>
-                            <td class="highlight">✅</td>
-                            <td>❌</td>
-                            <td>Script</td>
-                            <td>Partial</td>
-                        </tr>
-                        <tr>
-                            <td>Native UI</td>
-                            <td class="highlight">SwiftUI</td>
-                            <td>AppKit</td>
-                            <td>Qt</td>
-                            <td>Tauri</td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </section>
 
@@ -652,50 +441,27 @@
             <div class="container">
                 <div class="killer-grid">
                     <div class="killer-content">
-                        <h2>Privacy is not an option.<br>It's the architecture.</h2>
-                        <p>Built from ground up with privacy as the core principle. No compromises.</p>
+                        <h2>Clipboard history stays on your Mac</h2>
                         <ul class="killer-list">
-                            <li>No analytics, no tracking, no telemetry</li>
-                            <li>No cloud sync, no accounts required</li>
-                            <li>Respects macOS concealed clipboard flags</li>
-                            <li>Optional AES-GCM encryption for pinned items</li>
-                            <li>Full app sandbox with zero entitlements</li>
+                            <li>No built-in account, cloud sync, or usage analytics</li>
+                            <li>Configure excluded apps and sensitive clipboard type filters</li>
+                            <li>Review your history and exported files before sharing them</li>
                         </ul>
                     </div>
-                    <div class="killer-visual">
-                        <code>Network Requests: 0
-Telemetry Events: 0
-External APIs: 0
-Data Shared: 0 bytes
-Trust Required: minimal</code>
+                    <div class="killer-content">
+                        <h2>From clips to a project note</h2>
+                        <p>Export a set of clips, open the Markdown file, and keep its image folder beside it.</p>
+                        <a class="btn btn-secondary" href="https://github.com/kiku-jw/ClipStash#export-files-for-later-use">
+                            Export instructions
+                        </a>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section class="stats">
-            <div class="stat">
-                <div class="stat-value">&lt;60MB</div>
-                <div class="stat-label">Memory Usage</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">&lt;0.5%</div>
-                <div class="stat-label">CPU Idle</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">500+</div>
-                <div class="stat-label">History Items</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">0</div>
-                <div class="stat-label">Network Calls</div>
-            </div>
-        </section>
-
         <section class="cta">
             <div class="container">
-                <h2>Ready to own your clipboard?</h2>
-                <p>Free, open source, and forever offline.</p>
+                <h2>Get ClipStash for Mac</h2>
                 <div class="hero-buttons">
                     <a href="https://apps.apple.com/app/clipstash-pro/id6756281955" class="btn btn-primary">
                         🍎 Download on App Store
@@ -710,11 +476,11 @@ Trust Required: minimal</code>
             <div class="footer-links">
                 <a href="https://apps.apple.com/app/clipstash-pro/id6756281955">App Store</a>
                 <a href="https://www.producthunt.com/products/clipstash-macos-privacyfirst-clipboard">Product Hunt</a>
-                <a href="https://github.com/KikuAI-Lab/ClipStash">GitHub</a>
-                <a href="https://github.com/KikuAI-Lab/ClipStash/blob/main/PRIVACY.md">Privacy Policy</a>
-                <a href="https://github.com/KikuAI-Lab/ClipStash/wiki">Documentation</a>
+                <a href="https://github.com/kiku-jw/ClipStash">GitHub</a>
+                <a href="https://github.com/kiku-jw/ClipStash/blob/main/PRIVACY.md">Privacy Policy</a>
+                <a href="https://github.com/kiku-jw/ClipStash#export-files-for-later-use">Documentation</a>
             </div>
-            <p class="footer-copy">© 2024 ClipStash. Made with ❤️ for privacy.</p>
+            <p class="footer-copy">ClipStash · Open source</p>
         </div>
     </footer>
 </body>
