@@ -293,6 +293,37 @@ final class StorageManagerTests: XCTestCase {
     }
 
     // Generated 2x2 PNG; no user clipboard data is used by these fixtures.
+    func testClearKeepsImageReferencedByPinnedHistory() async throws {
+        let fixture = generatedPNG
+        let shared = try await storage.insert(type: .image, textContent: nil, imageData: fixture,
+            sourceBundleId: "test.clear", contentHash: "shared-image", byteSize: fixture.count)
+        let pinned = try await storage.insert(type: .image, textContent: nil, imageData: nil,
+            sourceBundleId: "test.clear", contentHash: "pinned-reference", byteSize: fixture.count)
+        let discard = try await storage.insert(type: .image, textContent: nil, imageData: fixture,
+            sourceBundleId: "test.clear", contentHash: "unreferenced-image", byteSize: fixture.count)
+        try await storage.setPinned(id: pinned, pinned: true)
+        try executeFixtureSQL("UPDATE items SET imagePath = (SELECT imagePath FROM items WHERE id = \(shared)) WHERE id = \(pinned)")
+        let sharedRecord = try await storage.fetchItem(id: shared)
+        let discardRecord = try await storage.fetchItem(id: discard)
+        let kept = await storage.imageURL(for: try XCTUnwrap(sharedRecord?.imagePath))
+        let removed = await storage.imageURL(for: try XCTUnwrap(discardRecord?.imagePath))
+
+        try await storage.clearAll(keepPinned: true)
+        await storage.close()
+        let reopened = StorageManager(baseDirectory: tempDBPath)
+        try await reopened.open()
+        let rows = try await reopened.fetchItems(limit: 10, offset: 0)
+        XCTAssertEqual(rows.map(\.id), [pinned])
+        XCTAssertTrue(rows.first?.pinned == true)
+        XCTAssertEqual(try Data(contentsOf: kept), fixture)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: removed.path))
+        try await reopened.clearAll(keepPinned: false)
+        let empty = try await reopened.count()
+        XCTAssertEqual(empty, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: kept.path))
+        await reopened.close()
+    }
+
     private var generatedPNG: Data {
         Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGO4YxQFRAwQCgApdgWhAEbY9wAAAABJRU5ErkJggg==")!
     }

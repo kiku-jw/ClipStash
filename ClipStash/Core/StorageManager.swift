@@ -196,16 +196,9 @@ actor StorageManager {
         var inserted = false
         defer {
             sqlite3_finalize(stmt)
-            if !inserted, let imagePath, let writtenImageURL {
-                // A SQLite error can still leave an inserted row (e.g. RAISE(FAIL)).
-                // Remove only this attempt's image, and only when no reference is proven.
-                var referenceStmt: OpaquePointer?
-                defer { sqlite3_finalize(referenceStmt) }
-                if sqlite3_prepare_v2(db, "SELECT 1 FROM items WHERE imagePath = ? LIMIT 1", -1, &referenceStmt, nil) == SQLITE_OK,
-                   sqlite3_bind_text(referenceStmt, 1, imagePath, -1, SQLITE_TRANSIENT) == SQLITE_OK,
-                   sqlite3_step(referenceStmt) == SQLITE_DONE {
-                    try? FileManager.default.removeItem(at: writtenImageURL)
-                }
+            // A SQLite error can leave an inserted row (e.g. RAISE(FAIL)).
+            if !inserted, let imagePath, let writtenImageURL, imageIsUnreferenced(imagePath) {
+                try? FileManager.default.removeItem(at: writtenImageURL)
             }
         }
 
@@ -524,13 +517,21 @@ actor StorageManager {
             try execute("DELETE FROM items")
         }
         
-        // Delete image files
-        for path in imagePaths {
+        // A second process can pin a row after the path read.
+        for path in imagePaths where imageIsUnreferenced(path) {
             let fileURL = imagesPath.appendingPathComponent(path)
             try? FileManager.default.removeItem(at: fileURL)
         }
     }
-    
+
+    private func imageIsUnreferenced(_ path: String) -> Bool {
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+        guard sqlite3_prepare_v2(db, "SELECT 1 FROM items WHERE imagePath = ? LIMIT 1", -1, &stmt, nil) == SQLITE_OK,
+              sqlite3_bind_text(stmt, 1, path, -1, SQLITE_TRANSIENT) == SQLITE_OK else { return false }
+        return sqlite3_step(stmt) == SQLITE_DONE
+    }
+
     // MARK: - Export Helpers
     
     /// Fetch items for export with various filters
