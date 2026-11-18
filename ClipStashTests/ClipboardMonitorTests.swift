@@ -33,7 +33,7 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
         }
     }
 
-    private struct Settings: ClipboardCaptureSettings {
+    private final class Settings: ClipboardCaptureSettings {
         var bytePreserveMode = false
         var textMaxBytes = 500_000
         var imageMaxBytes = 10_000_000
@@ -43,7 +43,8 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
         var saveImages = true
         var ignoreConcealed = true
         var ignoreTransient = true
-        func isIgnored(bundleId: String?) -> Bool { bundleId == "test.ignored" }
+        var ignoredBundleIds: Set<String> = ["test.ignored"]
+        func isIgnored(bundleId: String?) -> Bool { bundleId.map(ignoredBundleIds.contains) ?? false }
     }
 
     private final class Clock {
@@ -332,7 +333,7 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
             try await storage.setPinned(id: seedID, pinned: true)
             let seed = try await storage.fetchItem(id: seedID)
             let board = Pasteboard(), clock = Clock()
-            var settings = Settings()
+            let settings = Settings()
             settings.bytePreserveMode = true
             let monitor = ClipboardMonitor(pasteboard: board, settings: settings, storage: storage,
                 now: { clock.date }, sourceBundleId: { "test.allowed" })
@@ -409,6 +410,49 @@ final class ClipboardMonitorTests: ClipboardMonitorTestCase {
             let items = try await storage.fetchItems(limit: 100, offset: 0)
             try expect(items.count == 1 && items[0].textContent == "Allowed after invalidated preparation",
                 "Rejected preparation must not consume or throttle the next allowed copy")
+        }
+    }
+
+    func testAddingExclusionRejectsTextAndImageAlreadyBeingRead() async throws {
+        try await withFixture { storage, directory in
+            let board = Pasteboard(), clock = Clock(), settings = Settings()
+            let source = "test.newly-excluded"
+            let monitor = ClipboardMonitor(pasteboard: board, settings: settings, storage: storage,
+                now: { clock.date }, sourceBundleId: { source })
+            let pinned = try await storage.insert(type: .text, textContent: "Previously pinned invoice",
+                imageData: nil, sourceBundleId: "test.seed", contentHash: "seed-invoice", byteSize: 25)
+            try await storage.setPinned(id: pinned, pinned: true)
+            let seed = try await storage.fetchItem(id: pinned)
+
+            for image in [false, true] {
+                settings.ignoredBundleIds.remove(source)
+                board.copy("Generated clipboard text pending exclusion")
+                if image {
+                    board.text = nil
+                    board.types = [.png]
+                    board.image = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV1cAAAAASUVORK5CYII=")
+                }
+                board.onRead = { settings.ignoredBundleIds.insert(source) }
+                clock.date.addTimeInterval(1)
+                await monitor.checkPasteboard()
+            }
+            board.onRead = nil
+            settings.ignoredBundleIds.remove(source)
+            await monitor.checkPasteboard()
+            let rows = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(rows.count == 1 && rows.first == seed,
+                "Adding an exclusion before persistence must save neither pending text nor image and preserve the earlier pin")
+            let images = directory.appendingPathComponent("images")
+            let files = try FileManager.default.contentsOfDirectory(atPath: images.path)
+            try expect(files.isEmpty,
+                "Excluded image must not leave a staged PNG")
+
+            board.copy("Allowed new copy after re-enable")
+            clock.date.addTimeInterval(1)
+            await monitor.checkPasteboard()
+            let allowed = try await storage.fetchItems(limit: 100, offset: 0)
+            try expect(allowed.count == 2 && allowed.contains { $0.textContent == "Allowed new copy after re-enable" },
+                "Removal must allow a fresh copy without replaying blocked work")
         }
     }
 

@@ -225,8 +225,7 @@ final class ClipboardMonitor: ObservableObject {
             }
         }
         
-        // A workspace boundary or Stop can invalidate preparation across awaits.
-        guard epoch == captureEpoch else { return }
+        guard canPersistCapture(sourceBundleId: sourceBundleId, epoch: epoch) else { return }
         // Insert into storage
         do {
             _ = try await storage.insert(
@@ -265,8 +264,7 @@ final class ClipboardMonitor: ObservableObject {
             }
         }
         
-        // A workspace boundary or Stop can invalidate preparation across awaits.
-        guard epoch == captureEpoch else { return }
+        guard canPersistCapture(sourceBundleId: sourceBundleId, epoch: epoch) else { return }
         // Insert into storage
         do {
             _ = try await storage.insert(
@@ -287,6 +285,12 @@ final class ClipboardMonitor: ObservableObject {
     
     // MARK: - Helpers
     
+    private func canPersistCapture(sourceBundleId: String?, epoch: UInt64) -> Bool {
+        // The foreground, Stop, or preferences can change across asynchronous preparation.
+        epoch == captureEpoch && !settings.isIgnored(bundleId: sourceBundleId)
+            && !settings.isIgnored(bundleId: foregroundBundleId)
+    }
+
     private func isSensitiveContent(_ pasteboard: ClipboardPasteboard) -> Bool {
         let types = pasteboard.types ?? []
 
