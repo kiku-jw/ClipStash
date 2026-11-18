@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import XCTest
 @testable import ClipStash
 
@@ -174,5 +175,85 @@ final class ClipboardViewModelTests: XCTestCase {
         let storedItems = try await reopened.fetchItems(limit: 10, offset: 0)
         XCTAssertEqual(Set(storedItems), Set([image, text]))
         await reopened.close()
+    }
+    @MainActor
+    func testNewSearchOwnsResultsPaginationAndCopyWhilePreviousReadIsPending() async throws {
+        let id = UUID().uuidString
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ClipStashSearchTests-\(id)", isDirectory: true)
+        let board = NSPasteboard(name: NSPasteboard.Name("ClipStashSearchTests-\(id)"))
+        let storage = StorageManager(baseDirectory: directory)
+        let started = expectation(description: "Storage actor held for the two search requests")
+        let release = DispatchSemaphore(value: 0)
+        defer {
+            release.signal()
+            board.releaseGlobally()
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try await storage.open()
+        let oldText = "invoice for a previous rehearsal"
+        _ = try await storage.insert(type: .text, textContent: oldText, imageData: nil,
+            sourceBundleId: "test.generated.notes", contentHash: "old", byteSize: oldText.utf8.count)
+        var expected = Set<Int64>()
+        for number in 1...55 {
+            let text = "venue access note \(number)"
+            let id = try await storage.insert(type: .text, textContent: text, imageData: nil,
+                sourceBundleId: "test.generated.notes", contentHash: "new-\(number)", byteSize: text.utf8.count)
+            expected.insert(id)
+        }
+
+        let model = ClipboardViewModel(storage: storage, pasteboard: board)
+        let blocker = Task.detached { await storage.holdSearchTestQueue(started: started, release: release) }
+        let gateResult = await XCTWaiter.fulfillment(of: [started], timeout: 2)
+        XCTAssertEqual(gateResult, .completed)
+        model.searchQuery = "invoice"
+        let oldSearch = Task { await model.search() }
+        for _ in 0..<200 where !model.isLoading {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertTrue(model.isLoading, "The first query is visibly loading")
+        var newerStarted = false
+        let observation = model.$items.dropFirst().prefix(1).sink { _ in newerStarted = true }
+        model.searchQuery = "venue"
+        let newSearch = Task { await model.search() }
+        for _ in 0..<200 where !newerStarted {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertTrue(newerStarted, "The second query cleared the list before storage was released")
+        observation.cancel()
+        release.signal()
+        await blocker.value
+        await oldSearch.value
+        await newSearch.value
+
+        XCTAssertFalse(model.isLoading)
+        XCTAssertNil(model.error)
+        XCTAssertEqual(model.items.count, 50)
+        XCTAssertTrue(model.hasMore)
+        XCTAssertTrue(model.items.allSatisfy { $0.textContent?.hasPrefix("venue access note") == true })
+        model.searchQuery = "invoice"
+        await model.loadMore()
+        XCTAssertEqual(model.items.count, 50, "Pagination waits while the text field changes before the next search")
+        model.searchQuery = "venue"
+        await model.loadMore()
+        XCTAssertEqual(model.items.count, 55)
+        XCTAssertEqual(Set(model.items.map(\.id)), expected)
+        XCTAssertFalse(model.hasMore)
+
+        model.selectNext()
+        let text = model.selectedItem?.textContent
+        model.copySelected()
+        XCTAssertNotNil(text)
+        XCTAssertEqual(board.string(forType: .string), text)
+        XCTAssertNotEqual(board.string(forType: .string), oldText)
+        await storage.close()
+    }
+
+}
+
+private extension StorageManager {
+    func holdSearchTestQueue(started: XCTestExpectation, release: DispatchSemaphore) {
+        started.fulfill()
+        _ = release.wait(timeout: .now() + .seconds(5))
     }
 }

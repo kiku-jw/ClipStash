@@ -13,6 +13,8 @@ final class ClipboardViewModel: ObservableObject {
     
     private let pageSize = 50
     private var currentOffset = 0
+    private var loadGeneration: UInt64 = 0
+    private var pageQuery = ""
     private var copyRequest: UInt64 = 0
     private let injectedStorage: StorageManager?
     private let injectedPasteboard: NSPasteboard?
@@ -34,37 +36,46 @@ final class ClipboardViewModel: ObservableObject {
     // MARK: - Loading
     
     func loadInitial() async {
+        loadGeneration &+= 1
+        pageQuery = searchQuery
         currentOffset = 0
         hasMore = true
         items = []
-        
-        await loadMore()
+        error = nil
+
+        await loadPage()
     }
-    
+
     func loadMore() async {
-        guard !isLoading, hasMore else { return }
-        
+        guard !isLoading, hasMore, searchQuery == pageQuery else { return }
+        await loadPage()
+    }
+
+    private func loadPage() async {
+        let generation = loadGeneration
+        let query = pageQuery
         isLoading = true
-        defer { isLoading = false }
-        
+        defer {
+            if generation == loadGeneration { isLoading = false }
+        }
+
         do {
             let newItems: [ClipItem]
-            
-            if searchQuery.isEmpty {
+            if query.isEmpty {
                 newItems = try await storage.fetchItems(limit: pageSize, offset: currentOffset)
             } else {
-                newItems = try await storage.search(query: searchQuery, limit: pageSize, offset: currentOffset)
+                newItems = try await storage.search(query: query, limit: pageSize, offset: currentOffset)
             }
-            
+            guard generation == loadGeneration, query == searchQuery else { return }
             items.append(contentsOf: newItems)
             currentOffset += newItems.count
             hasMore = newItems.count >= pageSize
-            
         } catch {
+            guard generation == loadGeneration, query == searchQuery else { return }
             self.error = error.localizedDescription
         }
     }
-    
+
     func refresh() async {
         await loadInitial()
     }
