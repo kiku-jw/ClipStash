@@ -551,7 +551,8 @@ actor StorageManager {
             params.append(Int64(since.timeIntervalSince1970))
         }
         
-        if let ids = ids, !ids.isEmpty {
+        if let ids {
+            guard !ids.isEmpty else { return [] }
             let placeholders = ids.map { _ in "?" }.joined(separator: ",")
             conditions.append("id IN (\(placeholders))")
             params.append(contentsOf: ids)

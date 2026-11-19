@@ -28,6 +28,90 @@ final class ExportServiceTests: XCTestCase {
     
     // MARK: - Tests
     
+    func testEmptySelectedScopeDoesNotExportAnyHistory() async throws {
+        _ = try await storage.insert(type: .text, textContent: "Unselected customer note",
+            imageData: nil, sourceBundleId: "fixture.private", contentHash: "unselected", byteSize: 24)
+        let output = tempExportDir.appendingPathComponent("empty-selection", isDirectory: true)
+        do {
+            _ = try await service.exportNewFolder(scope: .selected([]), format: .markdown,
+                includeImageRefs: true, destinationDir: output)
+            XCTFail("An empty explicit selection must never export clipboard history")
+        } catch ExportError.noItemsToExport {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+        }
+    }
+
+    @MainActor
+    func testSelectedIncidentExportExcludesOtherClipsAndPreservesHistory() async throws {
+        func addText(_ text: String) async throws -> Int64 {
+            try await storage.insert(type: .text, textContent: text, imageData: nil,
+                sourceBundleId: "fixture.report", contentHash: text, byteSize: text.utf8.count)
+        }
+        let previousNote = "Earlier pinned note must stay out of the report"
+        let previousID = try await addText(previousNote)
+        try await storage.setPinned(id: previousID, pinned: true)
+        let errorText = "CSV-214: Retry leaves the Save button disabled."
+        let errorID = try await addText(errorText)
+        let unrelated = "Unselected internal test note"
+        _ = try await addText(unrelated)
+        let linkText = "https://example.test/issues/CSV-214"
+        let linkID = try await addText(linkText)
+        let before = try makePNG(red: 123, blue: 19)
+        let after = try makePNG(red: 11, blue: 226)
+        let beforeID = try await insertImage(before, source: "fixture.before")
+        let afterID = try await insertImage(after, source: "fixture.after")
+
+        let directory = tempExportDir.appendingPathComponent("incident", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        let earlierExport = directory.appendingPathComponent("previous.md")
+        let earlierData = Data("Earlier report".utf8)
+        try earlierData.write(to: earlierExport)
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("ClipStashExportTests-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        XCTAssertTrue(pasteboard.setString("Unchanged test clipboard", forType: .string))
+
+        let model = ClipboardViewModel(storage: storage, pasteboard: pasteboard)
+        await model.loadInitial()
+        let initialHistory = model.items
+        XCTAssertEqual(initialHistory.count, 6)
+        let result = try await model.exportSelected([errorID, linkID, beforeID, afterID], to: directory)
+        XCTAssertEqual(result.itemCount, 4)
+        let report = try XCTUnwrap(result.files.first)
+        let reportBytes = try Data(contentsOf: report)
+        let markdown = try String(contentsOf: report, encoding: .utf8)
+        XCTAssertTrue(markdown.contains(errorText))
+        XCTAssertTrue(markdown.contains(linkText))
+        XCTAssertFalse(markdown.contains(previousNote))
+        XCTAssertFalse(markdown.contains(unrelated))
+        let refs = try imageReferences(in: report)
+        XCTAssertEqual(refs.count, 2)
+        for (id, bytes) in [(beforeID, before), (afterID, after)] {
+            let ref = try XCTUnwrap(refs.first { $0.hasSuffix("_\(id).png") })
+            let image = report.deletingLastPathComponent().appendingPathComponent(ref)
+            XCTAssertEqual(try Data(contentsOf: image), bytes)
+        }
+
+        let priorFiles = try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
+        let expiredID = try await addText("A clip removed just before export")
+        try await storage.delete(id: expiredID)
+        do {
+            _ = try await model.exportSelected([errorID, expiredID], to: directory)
+            XCTFail("A partly missing selection must not produce a partial report")
+        } catch ExportError.selectionChanged {
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted(), priorFiles)
+        }
+        XCTAssertEqual(try Data(contentsOf: report), reportBytes)
+        XCTAssertEqual(try Data(contentsOf: earlierExport), earlierData)
+        XCTAssertEqual(pasteboard.string(forType: .string), "Unchanged test clipboard")
+
+        await storage.close()
+        let reopened = StorageManager(baseDirectory: tempExportDir.appendingPathComponent("database"))
+        try await reopened.open()
+        let reopenedRows = try await reopened.fetchItems(limit: 50, offset: 0)
+        XCTAssertEqual(reopenedRows, initialHistory)
+        await reopened.close()
+    }
+
     func testMarkdownExport() async throws {
         // Clear and insert test data
         try await storage.clearAll(keepPinned: false)

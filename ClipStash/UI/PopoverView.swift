@@ -19,6 +19,8 @@ struct PopoverView: View {
     @State private var selectedApp: String = "all"
     @State private var availableApps: [String] = []
     @State private var searchTask: Task<Void, Never>?
+    @State private var exportSelection: Set<Int64>?
+    @State private var isExportingSelection = false
     @FocusState private var isSearchFocused: Bool
     
     private var filteredItems: [ClipItem] {
@@ -61,6 +63,9 @@ struct PopoverView: View {
                     .scaleEffect(0.7)
                     .padding(.vertical, 4)
             }
+            if let exportSelection {
+                selectionBar(count: exportSelection.count)
+            }
         }
         .frame(width: 400, height: 480)
         .background(Color(NSColor.windowBackgroundColor))
@@ -71,18 +76,26 @@ struct PopoverView: View {
             }
         }
         .onKeyPress(.upArrow) {
+            guard exportSelection == nil else { return .ignored }
             viewModel.selectPrevious()
             return .handled
         }
         .onKeyPress(.downArrow) {
+            guard exportSelection == nil else { return .ignored }
             viewModel.selectNext()
             return .handled
         }
         .onKeyPress(.return) {
+            guard exportSelection == nil else { return .ignored }
             viewModel.copySelected()
             return .handled
         }
         .onKeyPress(.escape) {
+            if exportSelection != nil {
+                guard !isExportingSelection else { return .ignored }
+                exportSelection = nil
+                return .handled
+            }
             if !viewModel.searchQuery.isEmpty {
                 viewModel.searchQuery = ""
                 triggerSearch()
@@ -91,6 +104,7 @@ struct PopoverView: View {
             return .ignored
         }
         .onKeyPress(.delete) {
+            guard exportSelection == nil else { return .ignored }
             Task { await viewModel.deleteSelected() }
             return .handled
         }
@@ -104,6 +118,45 @@ struct PopoverView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This action cannot be undone.")
+        }
+    }
+
+    private func selectionBar(count: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Divider()
+            Text("The export may contain sensitive data.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Button("Cancel") { exportSelection = nil }
+                    .disabled(isExportingSelection)
+                Spacer()
+                Button("Export Selected (\(count))…", action: exportChosenClips)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(count == 0 || isExportingSelection)
+            }
+        }
+        .padding(10)
+    }
+
+    private func exportChosenClips() {
+        guard let ids = exportSelection, !ids.isEmpty, !isExportingSelection else { return }
+        isExportingSelection = true
+        guard let directory = ExportDestinationPicker.chooseDirectory() else {
+            isExportingSelection = false
+            return
+        }
+        Task {
+            defer { isExportingSelection = false }
+            do {
+                let result = try await viewModel.exportSelected(ids, to: directory)
+                exportSelection = nil
+                if let firstFile = result.files.first {
+                    NSWorkspace.shared.activateFileViewerSelecting([firstFile])
+                }
+            } catch {
+                NSApp.presentError(error)
+            }
         }
     }
     
@@ -158,6 +211,7 @@ struct PopoverView: View {
             .padding(.vertical, 7)
             .background(Color(NSColor.controlBackgroundColor))
             .cornerRadius(8)
+            .disabled(exportSelection != nil)
             
             // Filter row
             HStack(spacing: 8) {
@@ -169,6 +223,7 @@ struct PopoverView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 140)
+                .disabled(exportSelection != nil)
                 
                 // App filter
                 Menu {
@@ -197,8 +252,20 @@ struct PopoverView: View {
                     .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
+                .disabled(exportSelection != nil)
                 
                 Spacer()
+
+                Button {
+                    isSearchFocused = false
+                    exportSelection = []
+                } label: {
+                    Image(systemName: "checklist")
+                }
+                .accessibilityLabel("Select Clips for Export")
+                .help("Select clips for export")
+                .buttonStyle(.plain)
+                .disabled(exportSelection != nil || filteredItems.isEmpty || viewModel.isLoading)
                 
                 // Clear button
                 Button {
@@ -210,6 +277,7 @@ struct PopoverView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.red.opacity(0.8))
                 .help("Clear History")
+                .disabled(exportSelection != nil)
             }
         }
         .padding(.horizontal, 12)
@@ -287,54 +355,8 @@ struct PopoverView: View {
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(filteredItems) { item in
-                        ClipItemRow(item: item)
+                        exportableRow(item)
                             .id(item.id)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(backgroundColor(for: item))
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                viewModel.selectedItemId = item.id
-                            }
-                            .simultaneousGesture(
-                                TapGesture(count: 2).onEnded {
-                                    DetailWindowController.shared.showDetail(for: item, viewModel: viewModel)
-                                }
-                            )
-                            .onHover { isHovered in
-                                hoveredItemId = isHovered ? item.id : nil
-                            }
-                            .contextMenu {
-                                Button {
-                                    viewModel.copyToClipboard(item)
-                                } label: {
-                                    Label("Copy", systemImage: "doc.on.doc")
-                                }
-                                
-                                Button {
-                                    Task { await viewModel.togglePinned(item) }
-                                } label: {
-                                    Label(item.pinned ? "Unpin" : "Pin", 
-                                          systemImage: item.pinned ? "pin.slash" : "pin")
-                                }
-                                
-                                if let app = item.sourceBundleId {
-                                    Button {
-                                        selectedApp = app
-                                    } label: {
-                                        Label("Filter by \(appDisplayName(for: app))", systemImage: "line.3.horizontal.decrease.circle")
-                                    }
-                                }
-                                
-                                Divider()
-                                
-                                Button(role: .destructive) {
-                                    Task { await viewModel.deleteItem(item) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
                             .onAppear {
                                 if item.id == viewModel.items.last?.id {
                                     Task { await viewModel.loadMore() }
@@ -352,6 +374,71 @@ struct PopoverView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func exportableRow(_ item: ClipItem) -> some View {
+        if exportSelection != nil {
+            Toggle(isOn: Binding(
+                get: { exportSelection?.contains(item.id) == true },
+                set: { checked in
+                    if checked { exportSelection?.insert(item.id) }
+                    else { exportSelection?.remove(item.id) }
+                }
+            )) {
+                ClipItemRow(item: item)
+            }
+            .toggleStyle(.checkbox)
+            .disabled(isExportingSelection)
+        } else {
+            ClipItemRow(item: item)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(backgroundColor(for: item))
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    viewModel.selectedItemId = item.id
+                }
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded {
+                        DetailWindowController.shared.showDetail(for: item, viewModel: viewModel)
+                    }
+                )
+                .onHover { isHovered in
+                    hoveredItemId = isHovered ? item.id : nil
+                }
+                .contextMenu {
+                    Button {
+                        viewModel.copyToClipboard(item)
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+
+                    Button {
+                        Task { await viewModel.togglePinned(item) }
+                    } label: {
+                        Label(item.pinned ? "Unpin" : "Pin",
+                              systemImage: item.pinned ? "pin.slash" : "pin")
+                    }
+
+                    if let app = item.sourceBundleId {
+                        Button {
+                            selectedApp = app
+                        } label: {
+                            Label("Filter by \(appDisplayName(for: app))", systemImage: "line.3.horizontal.decrease.circle")
+                        }
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        Task { await viewModel.deleteItem(item) }
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
         }
     }
     

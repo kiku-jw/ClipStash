@@ -136,7 +136,9 @@ actor ExportService {
             return try await storage.fetchForExport(pinnedOnly: true)
             
         case .selected(let ids):
-            return try await storage.fetchForExport(ids: ids)
+            let items = try await storage.fetchForExport(ids: ids)
+            guard items.count == Set(ids).count else { throw ExportError.selectionChanged }
+            return items
             
         case .fromApps(let bundleIds):
             return try await storage.fetchForExport(bundleIds: bundleIds)
@@ -342,12 +344,15 @@ actor ExportService {
 
 enum ExportError: Error, LocalizedError {
     case noItemsToExport
+    case selectionChanged
     case writeError(String)
     
     var errorDescription: String? {
         switch self {
         case .noItemsToExport:
             return "No items to export"
+        case .selectionChanged:
+            return "Some selected clips are no longer in history. Select the clips again."
         case .writeError(let msg):
             return "Failed to write export file: \(msg)"
         }

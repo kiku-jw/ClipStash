@@ -85,6 +85,17 @@ final class ClipboardViewModel: ObservableObject {
     }
     
     // MARK: - Actions
+
+    func exportSelected(_ ids: Set<Int64>, to directory: URL) async throws -> ExportService.ExportResult {
+        let hasScopedAccess = directory.startAccessingSecurityScopedResource()
+        defer {
+            if hasScopedAccess { directory.stopAccessingSecurityScopedResource() }
+        }
+        return try await ExportService(storage: storage).exportNewFolder(
+            scope: .selected(ids.sorted()), format: .markdown, includeImageRefs: true,
+            destinationDir: ExportDestinationPicker.uniqueExportDirectory(inside: directory)
+        )
+    }
     
     func copyToClipboard(_ item: ClipItem, completion: @escaping (Bool) -> Void = { _ in }) {
         copyRequest &+= 1
