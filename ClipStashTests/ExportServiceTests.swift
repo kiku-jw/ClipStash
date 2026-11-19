@@ -483,6 +483,65 @@ final class ExportServiceTests: XCTestCase {
         }
     }
 
+    func testFailedFolderExportDoesNotLeaveCopiedImages() async throws {
+        let red = try makePNG(red: 255, blue: 0)
+        let blue = try makePNG(red: 0, blue: 255)
+        let first = try await insertImage(red, source: "fixture.first")
+        let second = try await insertImage(blue, source: "fixture.second")
+        let items = try await storage.fetchForExport(ids: [first, second])
+        XCTAssertEqual(items.map(\.id), [second, first])
+        let missingPath = try XCTUnwrap(items.last?.imagePath)
+        let missing = await storage.imageURL(for: missingPath)
+        let stillPresent = await storage.imageURL(for: try XCTUnwrap(items.first?.imagePath))
+
+        let earlier = try await service.exportNewFolder(scope: .selected([first, second]), format: .markdown,
+            includeImageRefs: true, destinationDir: tempExportDir.appendingPathComponent("earlier"))
+        let priorText = try Data(contentsOf: earlier.files[0])
+        try FileManager.default.removeItem(at: missing)
+        let before = try Set(FileManager.default.contentsOfDirectory(atPath: tempExportDir.path))
+        let destination = tempExportDir.appendingPathComponent("new-export")
+        do {
+            _ = try await service.exportNewFolder(scope: .selected([first, second]), format: .markdown,
+                includeImageRefs: true, destinationDir: destination)
+            XCTFail("The missing second screenshot must fail the export")
+        } catch {
+            XCTAssertEqual((error as NSError).code, NSFileReadNoSuchFileError)
+        }
+        let imageDirectory = destination.appendingPathComponent("images")
+        let leftoverImages = (try? FileManager.default.contentsOfDirectory(
+            at: imageDirectory, includingPropertiesForKeys: nil
+        )) ?? []
+        let leftoverBytes = try leftoverImages.map { try Data(contentsOf: $0) }
+        XCTAssertEqual(leftoverBytes.count, 0, "Failed export left \(leftoverBytes.map(\.count)) PNG bytes")
+        XCTAssertEqual(try Set(FileManager.default.contentsOfDirectory(atPath: tempExportDir.path)), before)
+        XCTAssertEqual(try Data(contentsOf: earlier.files[0]), priorText)
+        try assertImages(earlier, expected: ["fixture.first": red, "fixture.second": blue])
+        XCTAssertEqual(try Data(contentsOf: stillPresent), blue)
+
+        try red.write(to: missing, options: .atomic)
+        await storage.close()
+        try await storage.open()
+        let retryDestination = tempExportDir.appendingPathComponent("retry")
+        let retry = try await service.exportNewFolder(scope: .selected([first, second]), format: .markdown,
+            includeImageRefs: true, destinationDir: retryDestination)
+        try assertImages(retry, expected: ["fixture.first": red, "fixture.second": blue])
+        XCTAssertEqual(try Data(contentsOf: missing), red)
+        XCTAssertEqual(try Data(contentsOf: earlier.files[0]), priorText)
+
+        let completed = try Data(contentsOf: retry.files[0])
+        let successfulFolders = try Set(FileManager.default.contentsOfDirectory(atPath: tempExportDir.path))
+        do {
+            _ = try await service.exportNewFolder(scope: .selected([second]), format: .markdown,
+                includeImageRefs: true, destinationDir: retryDestination)
+            XCTFail("A completed export should never be replaced")
+        } catch {
+            XCTAssertEqual((error as NSError).code, NSFileWriteFileExistsError)
+        }
+        XCTAssertEqual(try Data(contentsOf: retry.files[0]), completed)
+        try assertImages(retry, expected: ["fixture.first": red, "fixture.second": blue])
+        XCTAssertEqual(try Set(FileManager.default.contentsOfDirectory(atPath: tempExportDir.path)), successfulFolders)
+    }
+
     func testConflictingImageFailsAndPreservesExistingFilesAndEarlierExport() async throws {
         let png = try makePNG(red: 255, blue: 0)
         let id = try await insertImage(png, source: "fixture.conflict")

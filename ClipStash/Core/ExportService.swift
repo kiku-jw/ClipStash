@@ -82,6 +82,41 @@ actor ExportService {
         )
     }
     
+    func exportNewFolder(
+        scope: ExportScope,
+        format: ExportFormat,
+        includeImageRefs: Bool,
+        destinationDir: URL
+    ) async throws -> ExportResult {
+        let fileManager = FileManager.default
+        let stagingDir = destinationDir.deletingLastPathComponent().appendingPathComponent(
+            ".ClipStash_Export_\(UUID().uuidString)", isDirectory: true
+        )
+        try fileManager.createDirectory(at: stagingDir, withIntermediateDirectories: false)
+        do {
+            let staged = try await export(
+                scope: scope, format: format, includeImageRefs: includeImageRefs,
+                destinationDir: stagingDir
+            )
+            try fileManager.moveItem(at: stagingDir, to: destinationDir)
+            return ExportResult(
+                files: staged.files.map { destinationDir.appendingPathComponent($0.lastPathComponent) },
+                itemCount: staged.itemCount,
+                totalBytes: staged.totalBytes
+            )
+        } catch {
+            let exportError = error
+            do {
+                try fileManager.removeItem(at: stagingDir)
+            } catch {
+                throw ExportError.writeError(
+                    "Could not remove the incomplete folder \(stagingDir.lastPathComponent)."
+                )
+            }
+            throw exportError
+        }
+    }
+
     // MARK: - Fetch Items
     
     private func fetchItems(for scope: ExportScope) async throws -> [ClipItem] {

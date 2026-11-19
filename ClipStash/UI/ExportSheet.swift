@@ -208,9 +208,6 @@ struct ExportSheet: View {
             isExporting = false
             return
         }
-        // Keep each export isolated so a prior export in the selected parent
-        // cannot be overwritten. The parent is the user-approved scope; the
-        // child directory is created by ExportService only after items exist.
         let destinationDir = ExportDestinationPicker.uniqueExportDirectory(inside: selectedDirectory)
 
         let hasScopedAccess = selectedDirectory.startAccessingSecurityScopedResource()
@@ -221,7 +218,7 @@ struct ExportSheet: View {
         }
         
         do {
-            result = try await ExportService.shared.export(
+            result = try await ExportService.shared.exportNewFolder(
                 scope: scope.scope,
                 format: format.format,
                 includeImageRefs: includeImages,
