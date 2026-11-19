@@ -203,7 +203,8 @@ actor ExportService {
         switch item.type {
         case .text:
             if let text = item.textContent {
-                entry += "```text\n\(text)\n```\n\n"
+                let fence = markdownFence(for: text)
+                entry += "\(fence)text\n\(text)\n\(fence)\n\n"
             }
             
         case .image:
@@ -211,6 +212,20 @@ actor ExportService {
         }
         
         return entry
+    }
+
+    private func markdownFence(for text: String) -> String {
+        var longestRun = 0
+        var currentRun = 0
+        for byte in text.utf8 {
+            if byte == 0x60 {
+                currentRun += 1
+                longestRun = max(longestRun, currentRun)
+            } else {
+                currentRun = 0
+            }
+        }
+        return String(repeating: "`", count: max(3, longestRun + 1))
     }
     
     private func generatePlainTextEntry(_ item: ClipItem, timestamp: String, source: String, includeImageRefs: Bool, imageCopyDir: URL?) async throws -> String {

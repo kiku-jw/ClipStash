@@ -58,6 +58,26 @@ final class ExportServiceTests: XCTestCase {
         XCTAssertTrue(content.contains("com.test.app"))
     }
     
+    func testMarkdownKeepsCopiedCodeFencesInsideTheCopiedText() async throws {
+        let sample = "Runbook edit\n````markdown\n```sh\necho Ready\n```\n````\nKeep this line"
+        _ = try await storage.insert(
+            type: .text,
+            textContent: sample,
+            imageData: nil,
+            sourceBundleId: "com.test.app",
+            contentHash: "copied-markdown",
+            byteSize: sample.utf8.count
+        )
+
+        let result = try await service.export(
+            scope: .lastN(1),
+            format: .markdown,
+            destinationDir: tempExportDir
+        )
+        let content = try String(contentsOf: try XCTUnwrap(result.files.first), encoding: .utf8)
+        XCTAssertTrue(content.contains("`````text\n\(sample)\n`````\n"))
+    }
+
     func testPlainTextExport() async throws {
         try await storage.clearAll(keepPinned: false)
         
