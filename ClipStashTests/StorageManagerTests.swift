@@ -324,6 +324,50 @@ final class StorageManagerTests: XCTestCase {
         await reopened.close()
     }
 
+    func testDeletingOneImageReferenceKeepsThePinnedCopyAfterReopen() async throws {
+        try await assertSharedImageSurvivesRemoval { removedID in
+            try await self.storage.delete(id: removedID)
+        }
+    }
+
+    func testEvictingOneImageReferenceKeepsThePinnedCopyAfterReopen() async throws {
+        try await assertSharedImageSurvivesRemoval { _ in
+            try await self.storage.evict(limit: 0)
+        }
+    }
+
+    private func assertSharedImageSurvivesRemoval(
+        _ remove: (Int64) async throws -> Void
+    ) async throws {
+        let fixture = generatedPNG
+        let original = try await storage.insert(type: .image, textContent: nil, imageData: fixture,
+            sourceBundleId: "test.history", contentHash: "original-image", byteSize: fixture.count)
+        let pinned = try await storage.insert(type: .image, textContent: nil, imageData: nil,
+            sourceBundleId: "test.history", contentHash: "pinned-reference", byteSize: fixture.count)
+        try await storage.setPinned(id: pinned, pinned: true)
+        try executeFixtureSQL("UPDATE items SET imagePath = (SELECT imagePath FROM items WHERE id = \(original)) WHERE id = \(pinned)")
+        let originalRecord = try await storage.fetchItem(id: original)
+        let imageURL = await storage.imageURL(for: try XCTUnwrap(originalRecord?.imagePath))
+
+        try await remove(original)
+        await storage.close()
+        storage = StorageManager(baseDirectory: tempDBPath)
+        try await storage.open()
+        let rows = try await storage.fetchItems(limit: 10, offset: 0)
+        XCTAssertEqual(rows.map(\.id), [pinned])
+        XCTAssertTrue(rows.first?.pinned == true)
+        let retained = try? Data(contentsOf: imageURL)
+        XCTAssertEqual(retained, fixture)
+        if let retained {
+            XCTAssertNotNil(NSImage(data: retained))
+        }
+
+        try await storage.delete(id: pinned)
+        let count = try await storage.count()
+        XCTAssertEqual(count, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: imageURL.path))
+    }
+
     private var generatedPNG: Data {
         Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGO4YxQFRAwQCgApdgWhAEbY9wAAAABJRU5ErkJggg==")!
     }

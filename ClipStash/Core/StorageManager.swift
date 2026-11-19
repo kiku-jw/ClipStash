@@ -344,8 +344,7 @@ actor StorageManager {
             throw StorageError.executeFailed(errorMessage)
         }
 
-        // Delete image file if exists
-        if let imagePath = item?.imagePath {
+        if let imagePath = item?.imagePath, imageIsUnreferenced(imagePath) {
             let fileURL = imagesPath.appendingPathComponent(imagePath)
             try? FileManager.default.removeItem(at: fileURL)
         }
@@ -482,8 +481,7 @@ actor StorageManager {
                     throw StorageError.executeFailed(errorMessage)
                 }
 
-                // Delete image files
-                for path in imagePaths {
+                for path in imagePaths where imageIsUnreferenced(path) {
                     let fileURL = imagesPath.appendingPathComponent(path)
                     try? FileManager.default.removeItem(at: fileURL)
                 }
